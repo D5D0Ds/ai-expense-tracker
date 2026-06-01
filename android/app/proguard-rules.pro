@@ -1,0 +1,7 @@
+-keep class io.flutter.** { *; }
+-keep class com.google.ai.edge.litertlm.** { *; }
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.protobuf.**
+-keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,RuntimeInvisibleAnnotations,RuntimeInvisibleParameterAnnotations,RuntimeInvisibleTypeAnnotations

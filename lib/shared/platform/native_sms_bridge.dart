@@ -1,0 +1,83 @@
+import 'package:flutter/services.dart';
+
+/// Contract for Android SMS queue operations.
+abstract interface class SmsGateway {
+  /// Drains pending SMS messages captured while the app was closed.
+  Future<List<NativeSmsMessage>> drainPending();
+
+  /// Adds a fake SMS into the native queue for local device testing.
+  Future<void> injectFakeSms(String body);
+
+  /// Queries the phone's SMS inbox for messages within a date range.
+  Future<List<NativeSmsMessage>> queryInbox(DateTime start, DateTime end);
+}
+
+/// Raw SMS message drained from the native queue.
+final class NativeSmsMessage {
+  /// Creates a native SMS message.
+  const NativeSmsMessage({
+    required this.sender,
+    required this.body,
+    required this.receivedAt,
+  });
+
+  /// SMS sender.
+  final String sender;
+
+  /// Raw SMS body.
+  final String body;
+
+  /// Device received time.
+  final DateTime receivedAt;
+
+  /// Deserializes from platform data.
+  factory NativeSmsMessage.fromMap(Map<dynamic, dynamic> map) {
+    return NativeSmsMessage(
+      sender: map['sender'] as String? ?? 'UNKNOWN',
+      body: map['body'] as String? ?? '',
+      receivedAt: DateTime.fromMillisecondsSinceEpoch(
+        map['receivedAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+}
+
+/// Method-channel facade for Android SMS queue operations.
+final class NativeSmsBridge implements SmsGateway {
+  /// Creates a bridge.
+  const NativeSmsBridge();
+
+  static const _channel = MethodChannel('ai_expense_tracker/sms');
+
+  /// Drains pending SMS messages captured while the app was closed.
+  @override
+  Future<List<NativeSmsMessage>> drainPending() async {
+    final raw = await _channel.invokeMethod<List<dynamic>>('drainPending');
+    return (raw ?? const [])
+        .whereType<Map<dynamic, dynamic>>()
+        .map(NativeSmsMessage.fromMap)
+        .toList();
+  }
+
+  /// Adds a fake SMS into the native queue for local device testing.
+  @override
+  Future<void> injectFakeSms(String body) async {
+    await _channel.invokeMethod<void>('injectFakeSms', {'body': body});
+  }
+
+  /// Queries the phone's SMS inbox for messages within a date range.
+  @override
+  Future<List<NativeSmsMessage>> queryInbox(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final raw = await _channel.invokeMethod<List<dynamic>>('queryInbox', {
+      'startTimestamp': start.millisecondsSinceEpoch,
+      'endTimestamp': end.millisecondsSinceEpoch,
+    });
+    return (raw ?? const [])
+        .whereType<Map<dynamic, dynamic>>()
+        .map(NativeSmsMessage.fromMap)
+        .toList();
+  }
+}
