@@ -1,6 +1,10 @@
 package io.github.openexpense.tracker.ai
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -62,8 +66,54 @@ class GemmaBridgePlugin private constructor(
                     result.error("query_failed", e.message, null)
                 }
             }
+            "showSyncNotification" -> {
+                val title = call.argument<String>("title").orEmpty()
+                val message = call.argument<String>("message").orEmpty()
+                val progress = call.argument<Int>("progress") ?: 0
+                val max = call.argument<Int>("max") ?: 100
+                showSyncNotification(title, message, progress, max)
+                result.success(null)
+            }
+            "cancelSyncNotification" -> {
+                cancelSyncNotification()
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
+    }
+
+    private fun showSyncNotification(title: String, message: String, progress: Int, max: Int) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "sms_sync_channel"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "SMS Sync Progress",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            manager.createNotificationChannel(channel)
+        }
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        }
+
+        builder.setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setOngoing(progress < max)
+            .setProgress(max, progress, false)
+
+        manager.notify(1001, builder.build())
+    }
+
+    private fun cancelSyncNotification() {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(1001)
     }
 
     private fun querySmsInbox(startTimestamp: Long, endTimestamp: Long): List<Map<String, Any>> {

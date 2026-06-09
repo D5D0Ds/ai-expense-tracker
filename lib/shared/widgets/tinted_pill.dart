@@ -34,13 +34,6 @@ class TintedPill extends StatelessWidget {
           if (icon != null) ...[
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 6),
-          ] else ...[
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 7),
           ],
           Text(
             label,

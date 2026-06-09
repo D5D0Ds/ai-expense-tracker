@@ -31,7 +31,6 @@ final class BudgetRepository {
   }
 
   /// Saves all month-keyed budgets.
-  Future<void> saveAll(Map<String, double> budgets) async {
-    await _database.settings.put(_key, budgets);
-  }
+  Future<void> saveAll(Map<String, double> budgets) =>
+      _database.settings.put(_key, budgets);
 }

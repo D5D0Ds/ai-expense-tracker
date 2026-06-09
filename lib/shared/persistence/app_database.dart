@@ -6,9 +6,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 /// Provides the opened local database to repositories.
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  throw StateError('AppDatabase must be overridden during bootstrap.');
-});
+final appDatabaseProvider = Provider<AppDatabase>(
+  (ref) => throw StateError('AppDatabase must be overridden during bootstrap.'),
+);
 
 /// Hive boxes used by the app.
 class AppDatabase {
@@ -33,19 +33,23 @@ class AppDatabase {
   static Future<AppDatabase> open() async {
     await Hive.initFlutter();
     final cipher = HiveAesCipher(await _readOrCreateKey());
+    final expenses = await Hive.openBox<dynamic>(
+      'expenses',
+      encryptionCipher: cipher,
+    );
+    final smsCandidates = await Hive.openBox<dynamic>(
+      'sms_candidates',
+      encryptionCipher: cipher,
+    );
+    final settings = await Hive.openBox<dynamic>(
+      'settings',
+      encryptionCipher: cipher,
+    );
+
     return AppDatabase._(
-      expenses: await Hive.openBox<dynamic>(
-        'expenses',
-        encryptionCipher: cipher,
-      ),
-      smsCandidates: await Hive.openBox<dynamic>(
-        'sms_candidates',
-        encryptionCipher: cipher,
-      ),
-      settings: await Hive.openBox<dynamic>(
-        'settings',
-        encryptionCipher: cipher,
-      ),
+      expenses: expenses,
+      smsCandidates: smsCandidates,
+      settings: settings,
     );
   }
 

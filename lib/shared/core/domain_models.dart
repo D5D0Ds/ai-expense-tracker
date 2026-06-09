@@ -40,10 +40,94 @@ enum ExpenseCategory {
   /// Finds a category from model output.
   static ExpenseCategory fromLabel(String? value) {
     final normalized = value?.trim().toLowerCase();
-    return values.firstWhereOrNull(
-          (category) => category.label.toLowerCase() == normalized,
-        ) ??
-        other;
+    if (normalized == null || normalized.isEmpty) return other;
+
+    final exact = values.firstWhereOrNull(
+      (category) =>
+          category.label.toLowerCase() == normalized ||
+          category.name.toLowerCase() == normalized,
+    );
+    if (exact != null) return exact;
+
+    if (normalized.contains('food') ||
+        normalized.contains('grocery') ||
+        normalized.contains('groceries') ||
+        normalized.contains('dining') ||
+        normalized.contains('restaurant') ||
+        normalized.contains('cafe') ||
+        normalized.contains('zomato') ||
+        normalized.contains('swiggy')) {
+      return food;
+    }
+    if (normalized.contains('travel') ||
+        normalized.contains('transport') ||
+        normalized.contains('cab') ||
+        normalized.contains('uber') ||
+        normalized.contains('ola') ||
+        normalized.contains('flight') ||
+        normalized.contains('train') ||
+        normalized.contains('fuel') ||
+        normalized.contains('petrol') ||
+        normalized.contains('diesel')) {
+      return travel;
+    }
+    if (normalized.contains('shopping') ||
+        normalized.contains('clothes') ||
+        normalized.contains('clothing') ||
+        normalized.contains('amazon') ||
+        normalized.contains('flipkart') ||
+        normalized.contains('ecommerce') ||
+        normalized.contains('store')) {
+      return shopping;
+    }
+    if (normalized.contains('bill') ||
+        normalized.contains('utility') ||
+        normalized.contains('utilities') ||
+        normalized.contains('recharge') ||
+        normalized.contains('phone') ||
+        normalized.contains('mobile') ||
+        normalized.contains('broadband') ||
+        normalized.contains('electricity') ||
+        normalized.contains('water') ||
+        normalized.contains('gas')) {
+      return bills;
+    }
+    if (normalized.contains('rent') ||
+        normalized.contains('landlord') ||
+        normalized.contains('housing') ||
+        normalized.contains('flat') ||
+        normalized.contains('pg')) {
+      return rent;
+    }
+    if (normalized.contains('health') ||
+        normalized.contains('medical') ||
+        normalized.contains('medicine') ||
+        normalized.contains('doctor') ||
+        normalized.contains('pharmacy') ||
+        normalized.contains('hospital') ||
+        normalized.contains('fitness') ||
+        normalized.contains('gym')) {
+      return health;
+    }
+    if (normalized.contains('entertainment') ||
+        normalized.contains('movie') ||
+        normalized.contains('show') ||
+        normalized.contains('subscription') ||
+        normalized.contains('netflix') ||
+        normalized.contains('prime') ||
+        normalized.contains('spotify') ||
+        normalized.contains('event') ||
+        normalized.contains('game')) {
+      return entertainment;
+    }
+    if (normalized.contains('transfer') ||
+        normalized.contains('sent to') ||
+        normalized.contains('peer') ||
+        normalized.contains('p2p') ||
+        normalized.contains('send')) {
+      return transfer;
+    }
+    return other;
   }
 }
 
@@ -59,7 +143,7 @@ enum ExpenseSource {
 /// Business meaning of a tracked ledger entry.
 enum TransactionKind {
   /// Merchant or household spend.
-  expense('Expense', 0xFF73D813),
+  expense('Expense', 0xFFFFFFFF),
 
   /// Money given out to another person.
   lent('Lent', 0xFFF59E0B),
@@ -98,8 +182,22 @@ enum TransactionKind {
         normalized == 'outgoing expense') {
       return expense;
     }
-    if (normalized == 'loaned' || normalized == 'lend') return lent;
-    if (normalized == 'loan' || normalized == 'borrow') return borrowed;
+    if (normalized == 'loaned' ||
+        normalized == 'lend' ||
+        normalized == 'lent' ||
+        normalized == 'outgoing loan') {
+      return lent;
+    }
+    if (normalized == 'loan' ||
+        normalized == 'borrow' ||
+        normalized == 'borrowed' ||
+        normalized == 'received' ||
+        normalized == 'credited' ||
+        normalized == 'credit' ||
+        normalized == 'inflow' ||
+        normalized == 'incoming') {
+      return borrowed;
+    }
     return expense;
   }
 }

@@ -35,11 +35,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    builder: (context, state) {
-                      return ExpenseDetailScreen(
-                        id: state.pathParameters['id']!,
-                      );
-                    },
+                    builder: (context, state) => ExpenseDetailScreen(
+                      id: state.pathParameters['id']!,
+                    ),
                   ),
                 ],
               ),

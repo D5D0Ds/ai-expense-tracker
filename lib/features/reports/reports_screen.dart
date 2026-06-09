@@ -37,7 +37,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final now = ref.watch(nowProvider)();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -90,16 +90,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         const Text(
           'Analyze spend by month, category, payment rail, and funding source.',
           style: TextStyle(color: AppTheme.textMuted, height: 1.35),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
         // Date range + filter chips
         _FilterBar(filter: filter),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
         // Summary snapshot
         GlassPanel(
@@ -110,7 +110,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 filter: filter,
                 count: trend.filteredExpenses.length,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Text(
                 inrFormat.format(trend.totalSpend),
                 style: const TextStyle(
@@ -119,7 +119,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -129,7 +129,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       color: AppTheme.amber,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _SnapshotTile(
                       label: 'Borrowed',
@@ -142,57 +142,41 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
         // View selector
         _ViewSelector(
           active: _activeView,
           onChanged: (view) => setState(() => _activeView = view),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
         // Chart area
         GlassPanel(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 280),
-            child: _buildChart(trend, filter),
+            child: _buildChart(trend),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildChart(TrendData trend, TrendFilter filter) {
-    final Widget chart;
-    switch (_activeView) {
-      case _TrendView.trend:
-        chart = _buildTrendChart(trend);
-      case _TrendView.categories:
-        chart = _buildCategoryChart(trend);
-      case _TrendView.paymentMethods:
-        chart = _buildPaymentMethodChart(trend);
-      case _TrendView.accounts:
-        chart = _buildAccountChart(trend);
-    }
+  Widget _buildChart(TrendData trend) {
     return KeyedSubtree(
       key: ValueKey(_activeView),
-      child: chart,
+      child: switch (_activeView) {
+        _TrendView.trend => _buildTrendChart(trend),
+        _TrendView.categories => _buildCategoryChart(trend),
+        _TrendView.paymentMethods => _buildPaymentMethodChart(trend),
+        _TrendView.accounts => _buildAccountChart(trend),
+      },
     );
   }
 
   Widget _buildTrendChart(TrendData trend) {
     final data = buildMonthlyTrendChartData(trend);
-    if (!hasPositiveAmount(data)) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-          child: Text(
-            'No spending in this range.',
-            style: TextStyle(color: AppTheme.textMuted),
-          ),
-        ),
-      );
-    }
+    if (!hasPositiveAmount(data)) return _emptyChartPlaceholder;
 
     return SizedBox(
       height: 260,
@@ -308,18 +292,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildCategoryChart(TrendData trend) {
     final data = buildCategoryChartData(trend);
-
-    if (data.isEmpty) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-          child: Text(
-            'No spending in this range.',
-            style: TextStyle(color: AppTheme.textMuted),
-          ),
-        ),
-      );
-    }
+    if (data.isEmpty) return _emptyChartPlaceholder;
 
     return _buildDonutChart(
       data: data,
@@ -333,18 +306,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildPaymentMethodChart(TrendData trend) {
     final data = buildPaymentMethodChartData(trend);
-
-    if (data.isEmpty) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-          child: Text(
-            'No spending in this range.',
-            style: TextStyle(color: AppTheme.textMuted),
-          ),
-        ),
-      );
-    }
+    if (data.isEmpty) return _emptyChartPlaceholder;
 
     return _buildDonutChart(
       data: data,
@@ -358,18 +320,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildAccountChart(TrendData trend) {
     final data = buildAccountChartData(trend);
-
-    if (data.isEmpty) {
-      return const SizedBox(
-        height: 200,
-        child: Center(
-          child: Text(
-            'No spending in this range.',
-            style: TextStyle(color: AppTheme.textMuted),
-          ),
-        ),
-      );
-    }
+    if (data.isEmpty) return _emptyChartPlaceholder;
 
     return _buildDonutChart(
       data: data,
@@ -394,28 +345,22 @@ class _DateHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     final startLabel = DateFormat.yMMMd().format(filter.startDate);
     final endLabel = DateFormat.yMMMd().format(filter.endDate);
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Date Range',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$startLabel — $endLabel  ·  $count transactions',
-                style: const TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 12,
-                ),
-              ),
-            ],
+        const Text(
+          'Date Range',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$startLabel — $endLabel  ·  $count transactions',
+          style: const TextStyle(
+            color: AppTheme.textMuted,
+            fontSize: 12,
           ),
         ),
       ],
@@ -510,7 +455,7 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: BorderRadius.circular(12),
@@ -559,7 +504,7 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                     children: [
                       const SizedBox(height: 8),
                       const Divider(color: Color(0x1FFFFFFF)),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
                       // Category filter
                       _FilterRow(
@@ -585,7 +530,7 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
                       // Payment method filter
                       _FilterRow(
@@ -611,7 +556,7 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
                       // Transaction kind filter
                       _FilterRow(
@@ -701,8 +646,18 @@ class _FilterRow extends StatelessWidget {
 
 Color? _filterColor<T>(SelectableFilterOption<T> option) {
   final accentValue = option.accentValue;
-  return accentValue == null ? null : Color(accentValue);
+  return accentValue != null ? Color(accentValue) : null;
 }
+
+const _emptyChartPlaceholder = SizedBox(
+  height: 200,
+  child: Center(
+    child: Text(
+      'No spending in this range.',
+      style: TextStyle(color: AppTheme.textMuted),
+    ),
+  ),
+);
 
 class _FilterOption extends StatelessWidget {
   const _FilterOption({

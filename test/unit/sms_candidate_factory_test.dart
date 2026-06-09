@@ -69,7 +69,8 @@ void main() {
       expect(candidate.receivedAt, receivedAt);
       expect(candidate.createdAt, createdAt);
       expect(candidate.status, SmsCandidateStatus.pending);
-      expect(candidate.proposedExpense, same(parsed));
+      expect(candidate.proposedExpense.amount, parsed.amount);
+      expect(candidate.proposedExpense.date, receivedAt);
       expect(candidate.modelReason, parsed.reason);
       expect(candidate.bodyHash, smsBodyHash(body));
       expect(candidate.redactedPreview, isNot(contains('XX2182')));

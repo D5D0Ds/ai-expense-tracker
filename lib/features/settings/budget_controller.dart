@@ -27,16 +27,12 @@ final class BudgetController extends Notifier<Map<String, double>> {
   }
 
   /// Sets the budget for the month containing [date].
-  Future<void> setBudgetForMonth(DateTime date, double amount) async {
-    await setBudget(getMonthKey(date), amount);
-  }
+  Future<void> setBudgetForMonth(DateTime date, double amount) =>
+      setBudget(getMonthKey(date), amount);
 
   /// Helper to get the month key as a String ('YYYY-MM') from a DateTime.
-  String getMonthKey(DateTime date) {
-    final y = date.year.toString();
-    final m = date.month.toString().padLeft(2, '0');
-    return '$y-$m';
-  }
+  String getMonthKey(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}';
 
   /// Returns the budget for any given month, applying the fallback default.
   /// If an exact budget entry is found for that month, it returns it.

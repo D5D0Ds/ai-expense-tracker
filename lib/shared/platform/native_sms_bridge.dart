@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provides access to native SMS operations.
-final smsGatewayProvider = Provider<SmsGateway>((ref) {
-  return NativeSmsBridge(
-    fallbackReceivedAt: ref.watch(nowProvider),
-  );
-});
+final smsGatewayProvider = Provider<SmsGateway>(
+  (ref) => NativeSmsBridge(fallbackReceivedAt: ref.watch(nowProvider)),
+);
 
 /// Contract for Android SMS queue operations.
 abstract interface class SmsGateway {
@@ -19,6 +17,17 @@ abstract interface class SmsGateway {
 
   /// Queries the phone's SMS inbox for messages within a date range.
   Future<List<NativeSmsMessage>> queryInbox(DateTime start, DateTime end);
+
+  /// Displays or updates a notification for background inbox sync progress.
+  Future<void> showSyncNotification({
+    required String title,
+    required String message,
+    required int progress,
+    required int max,
+  });
+
+  /// Cancels and removes the active inbox sync notification.
+  Future<void> cancelSyncNotification();
 }
 
 /// Raw SMS message drained from the native queue.
@@ -96,6 +105,26 @@ final class NativeSmsBridge implements SmsGateway {
         .whereType<Map<dynamic, dynamic>>()
         .map(_messageFromMap)
         .toList();
+  }
+
+  @override
+  Future<void> showSyncNotification({
+    required String title,
+    required String message,
+    required int progress,
+    required int max,
+  }) async {
+    await _channel.invokeMethod<void>('showSyncNotification', {
+      'title': title,
+      'message': message,
+      'progress': progress,
+      'max': max,
+    });
+  }
+
+  @override
+  Future<void> cancelSyncNotification() async {
+    await _channel.invokeMethod<void>('cancelSyncNotification');
   }
 
   NativeSmsMessage _messageFromMap(Map<dynamic, dynamic> map) {

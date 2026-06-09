@@ -42,114 +42,108 @@ class DashboardScreen extends ConsumerWidget {
         );
         final pending = suggestionsAsync.asData?.value.length ?? 0;
 
+        final items = <Widget>[
+          _HeroCard(
+            total: summary.totalSpend,
+            month: summary.month,
+            pending: pending,
+            lentTotal: summary.totalLent,
+            borrowedTotal: summary.totalBorrowed,
+            onReviewSms: () => context.push('/sms'),
+            onOpenReports: () => context.go('/reports'),
+          ),
+          if (pending > 0)
+            _ReminderBanner(
+              icon: LucideIcons.messageSquare,
+              title:
+                  '$pending SMS suggestion${pending == 1 ? '' : 's'} waiting',
+              message: 'Review them before they hit your monthly totals.',
+              action: 'Review',
+              onPressed: () => context.push('/sms'),
+            ),
+          if (modelAsync.asData?.value.isReady == false)
+            _ReminderBanner(
+              icon: LucideIcons.bot,
+              title: 'Gemma model not ready',
+              message: 'Download model to enable SMS parsing.',
+              action: 'Download',
+              onPressed: () => context.push('/model'),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricPanel(
+                  label: 'Transactions',
+                  value: summary.spendEntries.length.toString(),
+                  accent: AppTheme.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MetricPanel(
+                  label: 'Avg spend',
+                  value: inrFormat.format(summary.averageDailySpend),
+                  accent: AppTheme.accent,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricPanel(
+                  label: 'Lent out',
+                  value: inrFormat.format(summary.totalLent),
+                  accent: AppTheme.amber,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MetricPanel(
+                  label: 'Borrowed',
+                  value: inrFormat.format(summary.totalBorrowed),
+                  accent: AppTheme.sky,
+                ),
+              ),
+            ],
+          ),
+          if (summary.rankedSources.isNotEmpty)
+            _SourceBreakdown(entries: summary.rankedSources),
+          GlassPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Category flow',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 210,
+                  child: _CategoryChart(
+                    categoryTotals: summary.categoryTotals,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _RecentList(expenses: summary.monthExpenses.take(5).toList()),
+        ];
+
         return RefreshIndicator(
           onRefresh: () async {
             await ref.read(expenseControllerProvider.notifier).reload();
             await ref.read(smsSuggestionsControllerProvider.notifier).reload();
             await ref.read(modelAssetControllerProvider.notifier).check();
           },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-            children: [
-              _HeroCard(
-                total: summary.totalSpend,
-                month: summary.month,
-                pending: pending,
-                lentTotal: summary.totalLent,
-                borrowedTotal: summary.totalBorrowed,
-                onReviewSms: () => context.push('/sms'),
-                onOpenReports: () => context.go('/reports'),
-              ),
-              const SizedBox(height: 18),
-              if (pending > 0)
-                _ReminderBanner(
-                  icon: LucideIcons.messageSquare,
-                  title:
-                      '$pending SMS suggestion${pending == 1 ? '' : 's'} waiting',
-                  message: 'Review them before they hit your monthly totals.',
-                  action: 'Review',
-                  onPressed: () => context.push('/sms'),
-                ),
-              modelAsync.when(
-                data: (model) => model.isReady
-                    ? const SizedBox.shrink()
-                    : _ReminderBanner(
-                        icon: LucideIcons.bot,
-                        title: 'Gemma model not ready',
-                        message: 'Download once for private on-device parsing.',
-                        action: 'Download',
-                        onPressed: () => context.push('/model'),
-                      ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricPanel(
-                      label: 'Transactions',
-                      value: summary.spendEntries.length.toString(),
-                      accent: AppTheme.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetricPanel(
-                      label: 'Avg spend',
-                      value: inrFormat.format(summary.averageDailySpend),
-                      accent: AppTheme.accent,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricPanel(
-                      label: 'Lent out',
-                      value: inrFormat.format(summary.totalLent),
-                      accent: AppTheme.amber,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetricPanel(
-                      label: 'Borrowed',
-                      value: inrFormat.format(summary.totalBorrowed),
-                      accent: AppTheme.sky,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _SourceBreakdown(entries: summary.rankedSources),
-              const SizedBox(height: 14),
-              GlassPanel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Category flow',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: 210,
-                      child: _CategoryChart(
-                        categoryTotals: summary.categoryTotals,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              _RecentList(expenses: summary.monthExpenses.take(5).toList()),
-            ],
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (context, index) => items[index],
           ),
         );
       },
@@ -202,7 +196,7 @@ class _HeroCard extends ConsumerWidget {
               letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             inrFormat.format(total),
             style: const TextStyle(
@@ -212,7 +206,7 @@ class _HeroCard extends ConsumerWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           InkWell(
             onTap: () {
               showModalBottomSheet<void>(
@@ -274,7 +268,7 @@ class _HeroCard extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
@@ -284,7 +278,7 @@ class _HeroCard extends ConsumerWidget {
                       valueColor: AlwaysStoppedAnimation(progress.color),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -407,7 +401,7 @@ class _BudgetEditorSheetState extends State<_BudgetEditorSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               const Text(
                 'Changing this updates budget for this and future months. Previous months remain unchanged.',
                 style: TextStyle(
@@ -416,6 +410,7 @@ class _BudgetEditorSheetState extends State<_BudgetEditorSheet> {
                   height: 1.35,
                 ),
               ),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   const Text(
@@ -439,7 +434,7 @@ class _BudgetEditorSheetState extends State<_BudgetEditorSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(

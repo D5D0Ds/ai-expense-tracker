@@ -1,5 +1,6 @@
 import 'package:ai_expense_tracker/app/app.dart';
 import 'package:ai_expense_tracker/shared/persistence/app_database.dart';
+import 'package:ai_expense_tracker/shared/platform/exchange_rate_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,4 +20,8 @@ Future<void> bootstrap() async {
       child: const ExpenseTrackerApp(),
     ),
   );
+
+  // Warm up the exchange rate cache in the background — does not block startup.
+  // ignore: unawaited_futures
+  ExchangeRateRepository(database: database).fetchLatestRate();
 }

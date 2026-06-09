@@ -109,33 +109,43 @@ class SmsSuggestionsScreen extends ConsumerWidget {
           ],
         ),
         body: suggestionsAsync.when(
-          loading: () => Center(
-            child: _SmsSyncProgressIndicator(progress: syncProgress),
+          loading: () => const Center(
+            child: ShadProgress(),
           ),
           error: (error, stackTrace) => Center(child: Text(error.toString())),
           data: (suggestions) {
-            if (suggestions.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text(
-                    'No pending SMS suggestions.',
-                    style: TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+            return Column(
+              children: [
+                if (syncProgress != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: _SmsSyncProgressIndicator(progress: syncProgress),
                   ),
+                Expanded(
+                  child: suggestions.isEmpty && syncProgress == null
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text(
+                              'No pending SMS suggestions.',
+                              style: TextStyle(
+                                color: AppTheme.textMuted,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                          itemCount: suggestions.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            return _SuggestionCard(candidate: suggestions[index]);
+                          },
+                        ),
                 ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-              itemCount: suggestions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _SuggestionCard(candidate: suggestions[index]);
-              },
+              ],
             );
           },
         ),
@@ -144,13 +154,13 @@ class SmsSuggestionsScreen extends ConsumerWidget {
   }
 }
 
-final class _SmsSyncProgressIndicator extends StatelessWidget {
+final class _SmsSyncProgressIndicator extends ConsumerWidget {
   const _SmsSyncProgressIndicator({required this.progress});
 
   final SmsSyncProgress? progress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final progress = this.progress;
     final label = progress == null
         ? 'Preparing SMS sync'
@@ -164,30 +174,57 @@ final class _SmsSyncProgressIndicator extends StatelessWidget {
 
     return Semantics(
       label: label,
-      child: SizedBox(
-        width: 260,
+      child: GlassPanel(
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(LucideIcons.refreshCw, size: 16, color: AppTheme.blue),
+                    SizedBox(width: 8),
+                    Text(
+                      'Syncing SMS Inbox',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                ShadButton.ghost(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  onPressed: () {
+                    ref.read(smsSuggestionsControllerProvider.notifier).cancelSync();
+                  },
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: AppTheme.coral, fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             ShadProgress(value: value),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Text(
               label,
-              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              detail,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppTheme.textMuted,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              detail,
+              style: const TextStyle(
+                color: AppTheme.textMuted,
+                fontSize: 12,
               ),
             ),
           ],
@@ -222,13 +259,13 @@ class _SuggestionCard extends ConsumerWidget {
               _ConfidencePill(parsed.confidence),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           DirectionalAmount(
             amount: parsed.amount,
             kind: parsed.transactionKind,
             size: DirectionalAmountSize.large,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             parsed.payee,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
@@ -245,19 +282,19 @@ class _SuggestionCard extends ConsumerWidget {
               style: const TextStyle(color: AppTheme.textMuted),
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             candidate.redactedPreview,
             style: const TextStyle(color: AppTheme.textMuted),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             parsed.isPersonLike
                 ? 'Looks like a person. Switch between lent, borrowed, or expense before confirming.'
                 : candidate.modelReason,
             style: const TextStyle(color: Color(0xD8FFFFFF), fontSize: 13),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 24),
           Row(
             children: [
               Expanded(
@@ -374,14 +411,14 @@ class _EditSuggestionSheetState extends ConsumerState<_EditSuggestionSheet> {
                 'Fix the type, payment rail, or source labels before confirming.',
                 style: TextStyle(color: AppTheme.textMuted, height: 1.35),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
               const FormSectionLabel('Type'),
               const SizedBox(height: 8),
               TransactionKindSelector(
                 value: _transactionKind,
                 onChanged: (kind) => setState(() => _transactionKind = kind),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
               const FormSectionLabel('Amount'),
               const SizedBox(height: 8),
               ShadInput(
@@ -393,46 +430,46 @@ class _EditSuggestionSheetState extends ConsumerState<_EditSuggestionSheet> {
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Payee'),
               const SizedBox(height: 8),
               ShadInput(controller: _payeeController),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Category'),
               const SizedBox(height: 8),
               ExpenseCategorySelect(
                 value: _category,
                 onChanged: (category) => setState(() => _category = category),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Payment method'),
               const SizedBox(height: 8),
               PaymentMethodSelect(
                 value: _paymentMethod,
                 onChanged: (method) => setState(() => _paymentMethod = method),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Source label'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _sourceLabelController,
                 placeholder: const Text('Optional'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Funding account'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _fundingSourceController,
                 placeholder: const Text('Optional'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Masked account hint'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _accountHintController,
                 placeholder: const Text('Optional'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               ShadButton(
                 onPressed: _save,
                 child: const Text('Save changes'),

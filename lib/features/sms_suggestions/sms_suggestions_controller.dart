@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ai_expense_tracker/features/expenses/expense_api.dart';
 import 'package:ai_expense_tracker/features/sms_suggestions/gemma_expense_parser.dart';
 import 'package:ai_expense_tracker/features/sms_suggestions/sms_candidate_factory.dart';
@@ -61,19 +63,22 @@ final class SmsSyncProgress {
 final class SmsSyncProgressController extends Notifier<SmsSyncProgress?> {
   @override
   SmsSyncProgress? build() => null;
-
-  /// Publishes the current sync progress.
-  void update(SmsSyncProgress? progress) {
-    state = progress;
-  }
 }
 
 /// Controls parsing, confirmation, editing, and ignoring SMS suggestions.
 final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
+  bool _syncCancelled = false;
+
   @override
   Future<List<SmsCandidate>> build() async {
     await drainNativeQueue();
     return ref.watch(smsCandidateRepositoryProvider).pending();
+  }
+
+  /// Cancels the active SMS inbox sync.
+  void cancelSync() {
+    _syncCancelled = true;
+    ref.read(smsGatewayProvider).cancelSyncNotification();
   }
 
   /// Reloads pending suggestions.
@@ -182,38 +187,61 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
 
   /// Syncs phone SMS inbox within a given date range.
   Future<void> syncInbox(DateTime start, DateTime end) async {
-    final progress = ref.read(smsSyncProgressProvider.notifier);
-    state = const AsyncValue.loading();
-    progress.update(SmsSyncProgress.initial(total: 0));
+    _syncCancelled = false;
+    final progressController = ref.read(smsSyncProgressProvider.notifier);
+    progressController.state = SmsSyncProgress.initial(total: 0);
     try {
-      state = await AsyncValue.guard(() async {
-        final messages = await ref
-            .read(smsGatewayProvider)
-            .queryInbox(
-              start,
-              end,
-            );
-        progress.update(SmsSyncProgress.initial(total: messages.length));
-        await _parseAndQueueAll(
-          messages,
-          refreshAfterEachUpsert: false,
-          continueOnParseError: true,
-          onProgress: (summary) {
-            progress.update(
-              SmsSyncProgress(
-                processed: summary.processed,
-                total: messages.length,
-                added: summary.added,
-                skipped: summary.skipped,
-                failed: summary.failed,
-              ),
-            );
-          },
-        );
-        return ref.read(smsCandidateRepositoryProvider).pending();
-      });
+      final messages = await ref
+          .read(smsGatewayProvider)
+          .queryInbox(
+            start,
+            end,
+          );
+      if (_syncCancelled) return;
+      progressController.state = SmsSyncProgress.initial(total: messages.length);
+      await _parseAndQueueAll(
+        messages,
+        refreshAfterEachUpsert: true,
+        continueOnParseError: true,
+        onProgress: (summary) {
+          progressController.state = SmsSyncProgress(
+            processed: summary.processed,
+            total: messages.length,
+            added: summary.added,
+            skipped: summary.skipped,
+            failed: summary.failed,
+          );
+
+          unawaited(ref.read(smsGatewayProvider).showSyncNotification(
+            title: 'Syncing SMS inbox...',
+            message: 'Processed ${summary.processed}/${messages.length} messages (${summary.added} suggestions added)',
+            progress: summary.processed,
+            max: messages.length,
+          ));
+        },
+      );
+    } on Object catch (e, st) {
+      state = AsyncValue.error(e, st);
     } finally {
-      progress.update(null);
+      progressController.state = null;
+      if (_syncCancelled) {
+        await ref.read(smsGatewayProvider).showSyncNotification(
+          title: 'SMS Sync cancelled',
+          message: 'Sync was stopped by user.',
+          progress: 100,
+          max: 100,
+        );
+      } else {
+        await ref.read(smsGatewayProvider).showSyncNotification(
+          title: 'SMS Sync complete',
+          message: 'Inbox messages processed successfully.',
+          progress: 100,
+          max: 100,
+        );
+      }
+      unawaited(Future.delayed(const Duration(seconds: 3), () {
+        ref.read(smsGatewayProvider).cancelSyncNotification();
+      }));
     }
   }
 
@@ -225,6 +253,9 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
   }) async {
     var summary = const _SmsSyncSummary();
     for (final message in messages) {
+      if (_syncCancelled) {
+        break;
+      }
       try {
         final result = await _parseAndQueue(
           sender: message.sender,

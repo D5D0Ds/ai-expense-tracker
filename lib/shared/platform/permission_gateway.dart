@@ -2,9 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Provides platform permission operations.
-final permissionGatewayProvider = Provider<PermissionGateway>((ref) {
-  return const PermissionHandlerGateway();
-});
+final permissionGatewayProvider = Provider<PermissionGateway>(
+  (ref) => const PermissionHandlerGateway(),
+);
 
 /// App permissions used by feature UI.
 enum AppPermission {
@@ -69,8 +69,6 @@ extension on AppPermission {
 
 AppPermissionStatus _mapStatus(PermissionStatus status) {
   if (status.isGranted) return AppPermissionStatus.granted;
-  if (status.isPermanentlyDenied || status.isRestricted) {
-    return AppPermissionStatus.blocked;
-  }
+  if (status.isPermanentlyDenied || status.isRestricted) return AppPermissionStatus.blocked;
   return AppPermissionStatus.requestable;
 }

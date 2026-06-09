@@ -63,9 +63,8 @@ final class ModelAssetController extends AsyncNotifier<ModelAssetState> {
     ref.read(modelAssetServiceProvider).cancel();
   }
 
-  Future<void> _persist(ModelAssetState next) async {
-    await ref.read(modelAssetRepositoryProvider).saveState(next);
-  }
+  Future<void> _persist(ModelAssetState next) =>
+      ref.read(modelAssetRepositoryProvider).saveState(next);
 
   Future<void> _verifyCachedReadyModel(ModelAssetState cached) async {
     try {

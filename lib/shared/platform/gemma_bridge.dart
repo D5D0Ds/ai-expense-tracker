@@ -5,14 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provides the native Gemma gateway.
-final gemmaGatewayProvider = Provider<GemmaGateway>((ref) {
-  return const GemmaBridge();
-});
+final gemmaGatewayProvider = Provider<GemmaGateway>(
+  (ref) => const GemmaBridge(),
+);
 
 /// Provides current native Gemma diagnostics.
-final gemmaDiagnosticsProvider = FutureProvider<GemmaRuntimeDiagnostics>((ref) {
-  return ref.watch(gemmaGatewayProvider).diagnostics();
-});
+final gemmaDiagnosticsProvider = FutureProvider<GemmaRuntimeDiagnostics>(
+  (ref) => ref.watch(gemmaGatewayProvider).diagnostics(),
+);
 
 /// Contract for native Gemma model operations.
 abstract interface class GemmaGateway {

@@ -62,7 +62,6 @@ final class ModelAssetRepository {
   }
 
   /// Saves the latest model state.
-  Future<void> saveState(ModelAssetState state) async {
-    await _database.settings.put(_stateKey, state.toJson());
-  }
+  Future<void> saveState(ModelAssetState state) =>
+      _database.settings.put(_stateKey, state.toJson());
 }

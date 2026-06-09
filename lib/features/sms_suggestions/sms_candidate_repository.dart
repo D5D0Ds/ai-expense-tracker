@@ -22,11 +22,8 @@ final class SmsCandidateRepository {
   final JsonBoxStore<SmsCandidate> _store;
 
   /// Returns all suggestions ordered newest first.
-  Future<List<SmsCandidate>> all() async {
-    final candidates = _store.all()
-      ..sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
-    return candidates;
-  }
+  Future<List<SmsCandidate>> all() async =>
+      _store.all()..sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
 
   /// Returns pending suggestions.
   Future<List<SmsCandidate>> pending() async {
@@ -37,9 +34,7 @@ final class SmsCandidateRepository {
   }
 
   /// Finds a suggestion by id.
-  Future<SmsCandidate?> byId(String id) async {
-    return _store.byId(id);
-  }
+  Future<SmsCandidate?> byId(String id) async => _store.byId(id);
 
   /// Returns whether the SMS hash already exists.
   Future<bool> containsHash(String bodyHash) async {
@@ -48,7 +43,5 @@ final class SmsCandidateRepository {
   }
 
   /// Adds or replaces a candidate.
-  Future<void> upsert(SmsCandidate candidate) async {
-    await _store.upsert(candidate);
-  }
+  Future<void> upsert(SmsCandidate candidate) => _store.upsert(candidate);
 }

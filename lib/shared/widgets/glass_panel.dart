@@ -9,7 +9,7 @@ class GlassPanel extends StatelessWidget {
   const GlassPanel({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.all(18),
+    this.padding = const EdgeInsets.all(16),
     this.margin,
     this.onTap,
     this.borderColor,
@@ -41,32 +41,18 @@ class GlassPanel extends StatelessWidget {
           margin: margin,
           padding: padding,
           decoration: BoxDecoration(
-            color: AppTheme.surfaceRaised.withValues(alpha: 0.78),
+            color: AppTheme.surfaceRaised.withValues(alpha: 0.82),
             borderRadius: BorderRadius.circular(radius),
             border: Border.all(
-              color: borderColor ?? AppTheme.accentSoft.withValues(alpha: 0.08),
+              color: borderColor ?? const Color(0xFF26303B),
             ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.34),
                 blurRadius: 42,
-                offset: const Offset(0, 26),
-              ),
-              BoxShadow(
-                color: AppTheme.accent.withValues(alpha: 0.06),
-                blurRadius: 30,
-                offset: const Offset(0, -8),
+                offset: const Offset(0, 22),
               ),
             ],
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppTheme.accentSoft.withValues(alpha: 0.08),
-                AppTheme.surfaceRaised.withValues(alpha: 0.88),
-                AppTheme.surfaceMuted.withValues(alpha: 0.92),
-              ],
-            ),
           ),
           child: child,
         ),
@@ -85,7 +71,7 @@ class GlassPanel extends StatelessWidget {
   }
 }
 
-/// Full-page dark backdrop with subtle depth and no decorative blobs.
+/// Full-page dark backdrop with a pure, modern, classic layout.
 class AppBackdrop extends StatelessWidget {
   /// Creates an app backdrop.
   const AppBackdrop({required this.child, super.key});
@@ -98,59 +84,8 @@ class AppBackdrop extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppTheme.background,
-        gradient: RadialGradient(
-          center: Alignment.topCenter,
-          radius: 1.35,
-          colors: [
-            Color(0xFF182214),
-            Color(0xFF0B0E10),
-            AppTheme.background,
-            Color(0xFF020304),
-          ],
-        ),
       ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned(
-            top: -140,
-            left: -80,
-            right: -80,
-            child: IgnorePointer(
-              child: Container(
-                height: 280,
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      AppTheme.accent.withValues(alpha: 0.14),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -180,
-            right: -60,
-            child: IgnorePointer(
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      AppTheme.blue.withValues(alpha: 0.12),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          child,
-        ],
-      ),
+      child: child,
     );
   }
 }

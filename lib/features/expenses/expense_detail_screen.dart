@@ -1,4 +1,5 @@
 import 'package:ai_expense_tracker/features/expenses/expense_controller.dart';
+import 'package:ai_expense_tracker/features/expenses/expense_form_sheet.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/formatters.dart';
 import 'package:ai_expense_tracker/shared/theme/app_theme.dart';
@@ -24,33 +25,60 @@ class ExpenseDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final expenseAsync = ref.watch(expenseByIdProvider(id));
     return AppBackdrop(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
+      child: expenseAsync.when(
+        loading: () => const Scaffold(
           backgroundColor: Colors.transparent,
-          leading: IconButton(
-            icon: const Icon(LucideIcons.x),
-            onPressed: () => context.pop(),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(LucideIcons.trash2),
-              onPressed: () async {
-                await ref.read(expenseControllerProvider.notifier).delete(id);
-                if (context.mounted) context.pop();
-              },
-            ),
-          ],
+          body: Center(child: ShadProgress()),
         ),
-        body: expenseAsync.when(
-          loading: () => const Center(child: ShadProgress()),
-          error: (error, stackTrace) => Center(child: Text(error.toString())),
-          data: (expense) {
-            if (expense == null) {
-              return const Center(child: Text('Expense not found'));
-            }
-            return ListView(
-              padding: const EdgeInsets.all(18),
+        error: (error, stackTrace) => Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(child: Text(error.toString())),
+        ),
+        data: (expense) {
+          if (expense == null) {
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                leading: IconButton(
+                  icon: const Icon(LucideIcons.x),
+                  onPressed: () => context.pop(),
+                ),
+              ),
+              body: const Center(child: Text('Expense not found')),
+            );
+          }
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              leading: IconButton(
+                icon: const Icon(LucideIcons.x),
+                onPressed: () => context.pop(),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(LucideIcons.pencil),
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => ExpenseFormSheet(expense: expense),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2),
+                  onPressed: () async {
+                    await ref.read(expenseControllerProvider.notifier).delete(id);
+                    if (context.mounted) context.pop();
+                  },
+                ),
+              ],
+            ),
+            body: ListView(
+              padding: const EdgeInsets.all(16),
               children: [
                 GlassPanel(
                   child: Column(
@@ -65,7 +93,7 @@ class ExpenseDetailScreen extends ConsumerWidget {
                           PaymentMethodPill(expense.paymentMethod),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       Text(
                         transactionDateFormat.format(expense.occurredAt),
                         style: const TextStyle(
@@ -74,7 +102,7 @@ class ExpenseDetailScreen extends ConsumerWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       DirectionalAmount(
                         amount: expense.amount,
                         kind: expense.transactionKind,
@@ -92,8 +120,8 @@ class ExpenseDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Text(
                         expense.source == ExpenseSource.sms
-                            ? 'Captured from SMS and kept on-device.'
-                            : 'Logged manually from your private ledger.',
+                            ? 'SMS Transaction'
+                            : 'Manual Entry',
                         style: const TextStyle(
                           color: AppTheme.textMuted,
                           height: 1.35,
@@ -102,7 +130,7 @@ class ExpenseDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 GlassPanel(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +142,7 @@ class ExpenseDetailScreen extends ConsumerWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _Line('Entry', expense.transactionKind.label),
                       _Line('Created via', expense.source.name.toUpperCase()),
                       _Line('Payment', expense.paymentMethod.label),
@@ -136,9 +164,9 @@ class ExpenseDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

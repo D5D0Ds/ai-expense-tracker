@@ -121,5 +121,129 @@ void main() {
         expect(expense?.updatedAt, exportedAt);
       },
     );
+
+    test('upsert stores a new expense or updates an existing one', () async {
+      // Arrange
+      final repository = ExpenseRepository(
+        database: FakeAppDatabase(),
+        now: () => DateTime(2026, 6, 1),
+        generateId: () => 'id-1',
+      );
+      final expense = Expense(
+        id: 'id-1',
+        amount: 100,
+        currency: 'INR',
+        occurredAt: DateTime(2026, 6, 1),
+        payee: 'Swiggy',
+        category: ExpenseCategory.food,
+        source: ExpenseSource.manual,
+        createdAt: DateTime(2026, 6, 1),
+        updatedAt: DateTime(2026, 6, 1),
+      );
+
+      // Act & Assert (Insert)
+      await repository.upsert(expense);
+      var fetched = await repository.byId('id-1');
+      expect(fetched?.id, 'id-1');
+      expect(fetched?.amount, 100);
+      expect(fetched?.payee, 'Swiggy');
+
+      // Act & Assert (Update)
+      final updatedExpense = expense.copyWith(amount: 150);
+      await repository.upsert(updatedExpense);
+      fetched = await repository.byId('id-1');
+      expect(fetched?.id, 'id-1');
+      expect(fetched?.amount, 150);
+      expect(fetched?.payee, 'Swiggy');
+    });
+
+    test('delete removes an expense by id', () async {
+      // Arrange
+      final repository = ExpenseRepository(
+        database: FakeAppDatabase(),
+        now: () => DateTime(2026, 6, 1),
+        generateId: () => 'id-1',
+      );
+      final expense = Expense(
+        id: 'id-1',
+        amount: 100,
+        currency: 'INR',
+        occurredAt: DateTime(2026, 6, 1),
+        payee: 'Swiggy',
+        category: ExpenseCategory.food,
+        source: ExpenseSource.manual,
+        createdAt: DateTime(2026, 6, 1),
+        updatedAt: DateTime(2026, 6, 1),
+      );
+      await repository.upsert(expense);
+      expect(await repository.byId('id-1'), isNotNull);
+
+      // Act
+      await repository.delete('id-1');
+
+      // Assert
+      expect(await repository.byId('id-1'), isNull);
+    });
+
+    test('delete removes matching SmsCandidate by rawSmsHash', () async {
+      // Arrange
+      final database = FakeAppDatabase();
+      final repository = ExpenseRepository(
+        database: database,
+        now: () => DateTime(2026, 6, 1),
+        generateId: () => 'id-1',
+      );
+
+      final candidate = SmsCandidate(
+        id: 'candidate-1',
+        sender: 'HDFC',
+        receivedAt: DateTime(2026, 6, 1),
+        bodyHash: 'hash-abc',
+        redactedPreview: 'Debited 100',
+        status: SmsCandidateStatus.confirmed,
+        modelReason: 'Gemma parsed',
+        createdAt: DateTime(2026, 6, 1),
+        proposedExpense: ParsedExpense(
+          amount: 100,
+          currency: 'INR',
+          date: DateTime(2026, 6, 1),
+          payee: 'Swiggy',
+          category: ExpenseCategory.food,
+          transactionKind: TransactionKind.expense,
+          paymentMethod: PaymentMethodKind.upi,
+          confidence: 0.9,
+          reason: 'Parsed',
+          isPersonLike: false,
+        ),
+      );
+
+      // Seed candidate in database
+      await database.smsCandidates.put('candidate-1', candidate.toJson());
+
+      final expense = Expense(
+        id: 'expense-1',
+        amount: 100,
+        currency: 'INR',
+        occurredAt: DateTime(2026, 6, 1),
+        payee: 'Swiggy',
+        category: ExpenseCategory.food,
+        source: ExpenseSource.sms,
+        rawSmsHash: 'hash-abc',
+        createdAt: DateTime(2026, 6, 1),
+        updatedAt: DateTime(2026, 6, 1),
+      );
+      await repository.upsert(expense);
+
+      expect(await repository.byId('expense-1'), isNotNull);
+      expect(database.smsCandidates.get('candidate-1'), isNotNull);
+
+      // Act
+      await repository.delete('expense-1');
+
+      // Assert
+      expect(await repository.byId('expense-1'), isNull);
+      expect(database.smsCandidates.get('candidate-1'), isNull);
+    });
   });
 }
+

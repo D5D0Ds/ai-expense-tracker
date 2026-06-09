@@ -1,11 +1,61 @@
 import 'dart:io';
 
+import 'package:ai_expense_tracker/features/expenses/expense_api.dart';
 import 'package:ai_expense_tracker/features/expenses/expense_ports.dart';
 import 'package:ai_expense_tracker/features/reports/report_export_service.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('ReportExportService Providers & AppDocumentsReportFileStore', () {
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('report_path_test_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'getApplicationDocumentsDirectory') {
+          return tempDir.path;
+        }
+        return null;
+      });
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('providers resolve instances successfully', () {
+      final container = ProviderContainer(
+        overrides: [
+          // Override expenseExportMarkerProvider with a stub to avoid state errors
+          expenseExportMarkerProvider.overrideWithValue(_FakeExpenseExportMarker()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(reportFileStoreProvider), isA<AppDocumentsReportFileStore>());
+      expect(container.read(reportShareGatewayProvider), isA<SharePlusReportShareGateway>());
+      expect(container.read(reportExportServiceProvider), isA<ReportExportService>());
+    });
+
+    test('AppDocumentsReportFileStore resolves file path under temp/reports', () async {
+      const fileStore = AppDocumentsReportFileStore();
+      final file = await fileStore.reportFile(DateTime(2026, 6), 'pdf');
+
+      expect(file.path, contains('reports/expense-report-2026-06.pdf'));
+    });
+  });
+
   group('ReportExportService', () {
     late Directory directory;
     late _FakeExpenseExportMarker exportMarker;

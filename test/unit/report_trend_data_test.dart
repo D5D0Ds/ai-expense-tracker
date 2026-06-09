@@ -3,6 +3,60 @@ import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('TrendFilter', () {
+    test('copyWith copies fields or overrides with null', () {
+      final initial = TrendFilter(
+        startDate: DateTime(2026, 6, 1),
+        endDate: DateTime(2026, 6, 30),
+        category: ExpenseCategory.food,
+        paymentMethod: PaymentMethodKind.upi,
+        transactionKind: TransactionKind.expense,
+        account: 'HDFC',
+      );
+
+      // 1. Copy with new values
+      final updated = initial.copyWith(
+        startDate: DateTime(2026, 6, 2),
+        endDate: DateTime(2026, 6, 29),
+        category: ExpenseCategory.shopping,
+        paymentMethod: PaymentMethodKind.cash,
+        transactionKind: TransactionKind.lent,
+        account: 'Cash Account',
+      );
+
+      expect(updated.startDate, DateTime(2026, 6, 2));
+      expect(updated.endDate, DateTime(2026, 6, 29));
+      expect(updated.category, ExpenseCategory.shopping);
+      expect(updated.paymentMethod, PaymentMethodKind.cash);
+      expect(updated.transactionKind, TransactionKind.lent);
+      expect(updated.account, 'Cash Account');
+
+      // 2. Override with nulls
+      final cleared = initial.copyWith(
+        category: null,
+        paymentMethod: null,
+        transactionKind: null,
+        account: null,
+      );
+
+      expect(cleared.startDate, initial.startDate);
+      expect(cleared.endDate, initial.endDate);
+      expect(cleared.category, isNull);
+      expect(cleared.paymentMethod, isNull);
+      expect(cleared.transactionKind, isNull);
+      expect(cleared.account, isNull);
+
+      // 3. No overrides keeps original fields
+      final unchanged = initial.copyWith();
+      expect(unchanged.startDate, initial.startDate);
+      expect(unchanged.endDate, initial.endDate);
+      expect(unchanged.category, initial.category);
+      expect(unchanged.paymentMethod, initial.paymentMethod);
+      expect(unchanged.transactionKind, initial.transactionKind);
+      expect(unchanged.account, initial.account);
+    });
+  });
+
   group('computeTrendData', () {
     test('filters by date window and aggregates expense totals', () {
       // Arrange

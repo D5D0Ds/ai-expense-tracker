@@ -4,6 +4,7 @@ import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/core/text_normalization.dart';
 import 'package:ai_expense_tracker/shared/persistence/app_database.dart';
 import 'package:ai_expense_tracker/shared/persistence/json_box_store.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provides the expense repository.
@@ -38,23 +39,25 @@ final class ExpenseRepository
         fromJson: Expense.fromJson,
         toJson: (expense) => expense.toJson(),
         idOf: (expense) => expense.id,
+      ),
+      _smsStore = JsonBoxStore<SmsCandidate>(
+        box: database.smsCandidates,
+        fromJson: SmsCandidate.fromJson,
+        toJson: (candidate) => candidate.toJson(),
+        idOf: (candidate) => candidate.id,
       );
 
   final JsonBoxStore<Expense> _store;
+  final JsonBoxStore<SmsCandidate> _smsStore;
   final DateTime Function() _now;
   final String Function() _generateId;
 
   /// Returns all confirmed expenses ordered newest first.
-  Future<List<Expense>> all() async {
-    final expenses = _store.all()
-      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-    return expenses;
-  }
+  Future<List<Expense>> all() async =>
+      _store.all()..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
   /// Finds an expense by id.
-  Future<Expense?> byId(String id) async {
-    return _store.byId(id);
-  }
+  Future<Expense?> byId(String id) async => _store.byId(id);
 
   /// Adds a manually entered expense.
   Future<Expense> addManual({
@@ -98,6 +101,16 @@ final class ExpenseRepository
 
   /// Deletes an expense.
   Future<void> delete(String id) async {
+    final expense = await byId(id);
+    if (expense != null && expense.rawSmsHash != null) {
+      final candidates = _smsStore.all();
+      final match = candidates.firstWhereOrNull(
+        (candidate) => candidate.bodyHash == expense.rawSmsHash,
+      );
+      if (match != null) {
+        await _smsStore.delete(match.id);
+      }
+    }
     await _store.delete(id);
   }
 

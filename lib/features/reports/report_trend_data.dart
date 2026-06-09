@@ -134,10 +134,7 @@ TrendData computeTrendData(List<Expense> allExpenses, TrendFilter filter) {
       return false;
     }
     if (filter.account != null) {
-      final label =
-          expense.fundingSourceLabel ??
-          expense.sourceLabel ??
-          expense.paymentMethod.label;
+      final label = _accountKey(expense);
       if (!label.toLowerCase().contains(filter.account!.toLowerCase())) {
         return false;
       }
@@ -168,10 +165,7 @@ TrendData computeTrendData(List<Expense> allExpenses, TrendFilter filter) {
             (categoryTotals[expense.category] ?? 0) + expense.amount;
         paymentMethodTotals[expense.paymentMethod] =
             (paymentMethodTotals[expense.paymentMethod] ?? 0) + expense.amount;
-        final accountKey =
-            expense.fundingSourceLabel ??
-            expense.sourceLabel ??
-            expense.paymentMethod.label;
+        final accountKey = _accountKey(expense);
         accountTotals[accountKey] =
             (accountTotals[accountKey] ?? 0) + expense.amount;
       case TransactionKind.lent:
@@ -193,3 +187,8 @@ TrendData computeTrendData(List<Expense> allExpenses, TrendFilter filter) {
     dateWindow: window,
   );
 }
+
+String _accountKey(Expense expense) =>
+    expense.fundingSourceLabel ??
+    expense.sourceLabel ??
+    expense.paymentMethod.label;

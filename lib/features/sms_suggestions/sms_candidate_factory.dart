@@ -38,7 +38,7 @@ SmsCandidate buildPendingSmsCandidate({
     bodyHash: smsBodyHash(body),
     redactedPreview: redactSmsPreview(body),
     status: SmsCandidateStatus.pending,
-    proposedExpense: parsed,
+    proposedExpense: parsed.copyWith(date: receivedAt),
     modelReason: parsed.reason,
     createdAt: createdAt,
   );

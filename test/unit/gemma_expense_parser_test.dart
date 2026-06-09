@@ -1,48 +1,94 @@
 import 'package:ai_expense_tracker/features/sms_suggestions/gemma_expense_parser.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
+import 'package:ai_expense_tracker/shared/platform/exchange_rate_service.dart';
+import 'package:ai_expense_tracker/shared/platform/gemma_bridge.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockGemmaGateway extends Mock implements GemmaGateway {}
+
+class _MockExchangeRateService extends Mock implements ExchangeRateService {}
+
+/// Minimal [ParsedExpense] factory for tests.
+ParsedExpense _expense({
+  double amount = 100,
+  String currency = 'INR',
+  String reason = 'Test reason',
+}) => ParsedExpense(
+  amount: amount,
+  currency: currency,
+  date: DateTime(2026, 6, 9),
+  payee: 'Test',
+  category: ExpenseCategory.other,
+  confidence: 0.9,
+  reason: reason,
+  isPersonLike: false,
+);
 
 void main() {
-  group('GemmaExpenseParser fallback', () {
-    test('extracts amount, payee, food category, and account hint', () {
-      final fallbackDate = DateTime(2026, 6, 1, 12);
-      final parsed = GemmaExpenseParser.parseWithHeuristics(
-        'HDFC Bank: Rs. 642.00 debited from A/c XX2182 via UPI to SWIGGY on 01-Jun.',
-        fallbackDate: fallbackDate,
-      );
+  late _MockGemmaGateway mockBridge;
+  late _MockExchangeRateService mockRates;
+  late GemmaExpenseParser parser;
 
-      expect(parsed.amount, 642);
-      expect(parsed.date, fallbackDate);
-      expect(parsed.payee.toLowerCase(), contains('swiggy'));
-      expect(parsed.category, ExpenseCategory.food);
-      expect(parsed.paymentMethod, PaymentMethodKind.upi);
-      expect(parsed.sourceLabel, contains('HDFC'));
-      expect(parsed.fundingSourceLabel, contains('Account'));
-      expect(parsed.accountHint, isNotNull);
+  setUp(() {
+    mockBridge = _MockGemmaGateway();
+    mockRates = _MockExchangeRateService();
+    parser = GemmaExpenseParser(bridge: mockBridge, rates: mockRates);
+  });
+
+  group('GemmaExpenseParser', () {
+    test('passes through INR amounts unchanged', () async {
+      final inr = _expense(amount: 500, currency: 'INR');
+      when(() => mockBridge.parseSms(any())).thenAnswer((_) async => inr);
+
+      final result = await parser.parse('debited INR 500');
+
+      expect(result.amount, 500);
+      expect(result.currency, 'INR');
+      verifyNever(() => mockRates.getRate());
     });
 
-    test('suggests lent when payee looks like a person', () {
-      final fallbackDate = DateTime(2026, 6, 1, 12);
-      final parsed = GemmaExpenseParser.parseWithHeuristics(
-        'SBI: INR 1200 paid to Rahul Sharma via UPI ref 121212.',
-        fallbackDate: fallbackDate,
-      );
+    test('converts USD amounts using live rate', () async {
+      final usdExpense = _expense(amount: 10, currency: 'USD');
+      when(() => mockBridge.parseSms(any())).thenAnswer((_) async => usdExpense);
+      when(() => mockRates.getRate()).thenReturn(84.5);
 
-      expect(parsed.transactionKind, TransactionKind.lent);
-      expect(parsed.category, ExpenseCategory.transfer);
-      expect(parsed.isPersonLike, isTrue);
+      final result = await parser.parse('charged USD 10');
+
+      expect(result.amount, 845.0);
+      expect(result.currency, 'INR');
+      expect(result.reason, contains('84.5'));
     });
 
-    test('suggests borrowed when an incoming person transfer is detected', () {
-      final fallbackDate = DateTime(2026, 6, 1, 12);
-      final parsed = GemmaExpenseParser.parseWithHeuristics(
-        'Kotak Bank: INR 2500 received from Ananya Singh via UPI to A/c XX1044.',
-        fallbackDate: fallbackDate,
-      );
+    test('converts dollar-sign amounts using live rate', () async {
+      final dollarExpense = _expense(amount: 5.5, currency: r'$');
+      when(() => mockBridge.parseSms(any())).thenAnswer((_) async => dollarExpense);
+      when(() => mockRates.getRate()).thenReturn(84.0);
 
-      expect(parsed.transactionKind, TransactionKind.borrowed);
-      expect(parsed.paymentMethod, PaymentMethodKind.upi);
-      expect(parsed.fundingSourceLabel, contains('Account'));
+      final result = await parser.parse(r'charged $5.5');
+
+      expect(result.amount, closeTo(5.5 * 84.0, 0.01));
+      expect(result.currency, 'INR');
+    });
+
+    test('handles lowercase usd currency symbol', () async {
+      final usdLower = _expense(amount: 20, currency: 'usd');
+      when(() => mockBridge.parseSms(any())).thenAnswer((_) async => usdLower);
+      when(() => mockRates.getRate()).thenReturn(85.0);
+
+      final result = await parser.parse('charged usd 20');
+
+      expect(result.amount, 1700.0);
+      expect(result.currency, 'INR');
+    });
+
+    test('throws StateError when Gemma returns null', () async {
+      when(() => mockBridge.parseSms(any())).thenAnswer((_) async => null);
+
+      expect(
+        () => parser.parse('some sms'),
+        throwsA(isA<StateError>()),
+      );
     });
   });
 }

@@ -54,18 +54,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final model = ref.watch(modelAssetControllerProvider).asData?.value;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         const Text(
           'Settings',
           style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         const Text(
           'Permissions, model health, and local-only privacy controls.',
           style: TextStyle(color: Color(0xA3FFFFFF), height: 1.35),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         GlassPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'Permissions',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               _PermissionRow(
                 key: ValueKey('sms_$_refreshKey'),
                 permission: AppPermission.sms,
@@ -83,7 +83,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 description: 'Read expense hints from bank SMS',
                 onRequest: () => _request(AppPermission.sms),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _PermissionRow(
                 key: ValueKey('notif_$_refreshKey'),
                 permission: AppPermission.notification,
@@ -96,7 +96,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         GlassPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,18 +108,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 8),
               Text(
                 model?.phase == ModelAssetPhase.ready
-                    ? 'Model ready for private parsing.'
-                    : 'Model is required for on-device reasoning.',
+                    ? 'Model is loaded and ready.'
+                    : 'Model is required for SMS parsing.',
                 style: const TextStyle(color: Color(0xA3FFFFFF)),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               ShadButton.secondary(
                 width: double.infinity,
                 leading: const Icon(LucideIcons.download),
                 onPressed: () => context.push('/model'),
                 child: const Text('Manage model'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               FutureBuilder<GemmaRuntimeDiagnostics>(
                 future: ref.watch(gemmaDiagnosticsProvider.future),
                 builder: (context, snapshot) {
@@ -131,7 +131,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Divider(color: Color(0x1FFFFFFF)),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _RuntimeLine(
                         'Backend',
                         diagnostics.loaded
@@ -168,7 +168,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         GlassPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'Set your limit for current and future months. Past months will keep their historical budgets.',
                 style: TextStyle(color: Color(0xA3FFFFFF), height: 1.35),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   const Text(
@@ -215,7 +215,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             .read(budgetControllerProvider.notifier)
                             .setBudgetForMonth(now, val);
                         messenger.showSnackBar(
-                          const SnackBar(
+                           const SnackBar(
                             content: Text(
                               'Monthly budget updated successfully!',
                             ),
@@ -231,7 +231,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         const GlassPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +245,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'Expenses, SMS previews, and reports stay on this device. The app has no telemetry and no cloud sync.',
                 style: TextStyle(color: Color(0xA3FFFFFF), height: 1.35),
               ),
-              SizedBox(height: 14),
+              SizedBox(height: 16),
               _OpenAppSettingsButton(),
             ],
           ),

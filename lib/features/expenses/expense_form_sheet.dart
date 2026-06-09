@@ -13,7 +13,10 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 /// Bottom-sheet form for manual expense entry.
 class ExpenseFormSheet extends ConsumerStatefulWidget {
   /// Creates an expense form.
-  const ExpenseFormSheet({super.key});
+  const ExpenseFormSheet({this.expense, super.key});
+
+  /// Optional existing expense to edit.
+  final Expense? expense;
 
   @override
   ConsumerState<ExpenseFormSheet> createState() => _ExpenseFormSheetState();
@@ -29,6 +32,23 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
   ExpenseCategory _category = ExpenseCategory.food;
   TransactionKind _transactionKind = TransactionKind.expense;
   PaymentMethodKind _paymentMethod = PaymentMethodKind.upi;
+
+  @override
+  void initState() {
+    super.initState();
+    final expense = widget.expense;
+    if (expense != null) {
+      _amountController.text = expense.amount.toString();
+      _payeeController.text = expense.payee;
+      _notesController.text = expense.notes ?? '';
+      _accountHintController.text = expense.accountHint ?? '';
+      _sourceLabelController.text = expense.sourceLabel ?? '';
+      _fundingSourceController.text = expense.fundingSourceLabel ?? '';
+      _category = expense.category;
+      _transactionKind = expense.transactionKind;
+      _paymentMethod = expense.paymentMethod;
+    }
+  }
 
   @override
   void dispose() {
@@ -57,7 +77,7 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Manual entry',
+                widget.expense != null ? 'Edit entry' : 'Manual entry',
                 style: TextStyle(
                   color: AppTheme.textMuted.withValues(alpha: 0.92),
                   letterSpacing: 1.1,
@@ -66,23 +86,25 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Log money movement',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+              Text(
+                widget.expense != null ? 'Update transaction' : 'Log money movement',
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Capture spend, people you lent to, and money you borrowed.',
-                style: TextStyle(color: AppTheme.textMuted, height: 1.35),
+              const SizedBox(height: 8),
+              Text(
+                widget.expense != null
+                    ? 'Modify details of this ledger entry.'
+                    : 'Capture spend, people you lent to, and money you borrowed.',
+                style: const TextStyle(color: AppTheme.textMuted, height: 1.35),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
               const FormSectionLabel('Type'),
               const SizedBox(height: 8),
               TransactionKindSelector(
                 value: _transactionKind,
                 onChanged: (kind) => setState(() => _transactionKind = kind),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 24),
               const FormSectionLabel('Amount'),
               const SizedBox(height: 8),
               ShadInput(
@@ -95,7 +117,7 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Payee or person'),
               const SizedBox(height: 8),
               ShadInput(
@@ -106,21 +128,21 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                       : 'e.g., Payee',
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Category'),
               const SizedBox(height: 8),
               ExpenseCategorySelect(
                 value: _category,
                 onChanged: (category) => setState(() => _category = category),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Payment method'),
               const SizedBox(height: 8),
               PaymentMethodSelect(
                 value: _paymentMethod,
                 onChanged: (method) => setState(() => _paymentMethod = method),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Source label'),
               const SizedBox(height: 8),
               ShadInput(
@@ -136,35 +158,37 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   },
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Funding account'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _fundingSourceController,
                 placeholder: const Text('Optional linked account'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Masked account hint'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _accountHintController,
                 placeholder: const Text('A/c XX2182'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               const FormSectionLabel('Notes'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _notesController,
                 placeholder: const Text('Optional'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               ShadButton(
                 onPressed: _save,
-                leading: const Icon(LucideIcons.plus),
+                leading: Icon(widget.expense != null ? LucideIcons.check : LucideIcons.plus),
                 child: Text(
-                  _transactionKind == TransactionKind.expense
-                      ? 'Save expense'
-                      : 'Save entry',
+                  widget.expense != null
+                      ? 'Save changes'
+                      : _transactionKind == TransactionKind.expense
+                          ? 'Save expense'
+                          : 'Save entry',
                 ),
               ),
             ],
@@ -187,20 +211,38 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
       fundingSourceLabelText: _fundingSourceController.text,
     );
     if (input == null) return;
-    await ref
-        .read(expenseControllerProvider.notifier)
-        .addManual(
-          amount: input.amount,
-          payee: input.payee,
-          category: input.category,
-          transactionKind: input.transactionKind,
-          paymentMethod: input.paymentMethod,
-          occurredAt: ref.read(nowProvider)(),
-          notes: input.notes,
-          accountHint: input.accountHint,
-          sourceLabel: input.sourceLabel,
-          fundingSourceLabel: input.fundingSourceLabel,
-        );
+
+    final existing = widget.expense;
+    if (existing != null) {
+      final updated = existing.copyWith(
+        amount: input.amount,
+        payee: input.payee,
+        category: input.category,
+        transactionKind: input.transactionKind,
+        paymentMethod: input.paymentMethod,
+        notes: input.notes,
+        accountHint: input.accountHint,
+        sourceLabel: input.sourceLabel,
+        fundingSourceLabel: input.fundingSourceLabel,
+        updatedAt: ref.read(nowProvider)(),
+      );
+      await ref.read(expenseControllerProvider.notifier).upsert(updated);
+    } else {
+      await ref
+          .read(expenseControllerProvider.notifier)
+          .addManual(
+            amount: input.amount,
+            payee: input.payee,
+            category: input.category,
+            transactionKind: input.transactionKind,
+            paymentMethod: input.paymentMethod,
+            occurredAt: ref.read(nowProvider)(),
+            notes: input.notes,
+            accountHint: input.accountHint,
+            sourceLabel: input.sourceLabel,
+            fundingSourceLabel: input.fundingSourceLabel,
+          );
+    }
     if (mounted) Navigator.of(context).pop();
   }
 }

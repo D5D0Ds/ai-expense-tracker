@@ -16,11 +16,11 @@ abstract final class AppTheme {
   /// Muted inset surface.
   static const surfaceMuted = Color(0xFF0B1015);
 
-  /// Primary olive accent.
-  static const accent = Color(0xFF73D813);
+  /// Primary monochrome accent.
+  static const accent = Color(0xFFFFFFFF);
 
-  /// Soft lime highlight.
-  static const accentSoft = Color(0xFFE1ECD2);
+  /// Soft light grey highlight.
+  static const accentSoft = Color(0xFFE2E8F0);
 
   /// Cool secondary accent.
   static const blue = Color(0xFF8FB5FF);
@@ -37,11 +37,11 @@ abstract final class AppTheme {
   /// Warm danger accent.
   static const coral = Color(0xFFF57B6C);
 
-  /// Primary text.
-  static const textPrimary = Color(0xFFF5F7F1);
+  /// Primary text (neutral slate white).
+  static const textPrimary = Color(0xFFF8FAFC);
 
-  /// Secondary text.
-  static const textMuted = Color(0xFF9EA79A);
+  /// Secondary text (neutral slate grey).
+  static const textMuted = Color(0xFF94A3B8);
 
   /// Shadcn dark theme with custom liquid-fintech tokens.
   static ShadThemeData get dark {

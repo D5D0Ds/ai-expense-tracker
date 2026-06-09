@@ -26,6 +26,13 @@ final class FakeBox implements Box<dynamic> {
   }
 
   @override
+  Future<int> clear() async {
+    final count = _data.length;
+    _data.clear();
+    return count;
+  }
+
+  @override
   Iterable<dynamic> get values => _data.values;
 
   @override
@@ -44,6 +51,9 @@ final class FakeBox implements Box<dynamic> {
     }
     if (invocation.memberName == #delete) {
       return delete(invocation.positionalArguments[0]);
+    }
+    if (invocation.memberName == #clear) {
+      return clear();
     }
     if (invocation.memberName == #values) return values;
     throw UnimplementedError(

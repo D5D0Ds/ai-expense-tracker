@@ -1,5 +1,6 @@
 import 'package:ai_expense_tracker/features/expenses/expense_api.dart';
 import 'package:ai_expense_tracker/features/sms_suggestions/sms_candidate_factory.dart';
+import 'package:ai_expense_tracker/features/sms_suggestions/sms_candidate_repository.dart';
 import 'package:ai_expense_tracker/features/sms_suggestions/sms_suggestions_controller.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
@@ -393,7 +394,202 @@ void main() {
       expect(state.hasError, isTrue);
       expect(state.error, isA<Exception>());
     });
+
+    test('injectDemoSms injects body and drains native queue', () async {
+      final database = FakeAppDatabase();
+      final spySms = _SpySmsGateway();
+      final parsed = _parsedExpense(DateTime(2026, 6, 1));
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          gemmaGatewayProvider.overrideWithValue(_FakeGemmaGateway(parsed)),
+          smsGatewayProvider.overrideWithValue(spySms),
+          parsedExpenseConfirmerProvider.overrideWithValue(const _NoopParsedExpenseConfirmer()),
+          expenseReloaderProvider.overrideWithValue(const _NoopReloader()),
+          nowProvider.overrideWithValue(() => DateTime(2026, 6, 1)),
+          idGeneratorProvider.overrideWithValue(() => 'demoid'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final controller = container.read(smsSuggestionsControllerProvider.notifier);
+      await controller.injectDemoSms();
+
+      expect(spySms.injectedBodies, hasLength(1));
+      expect(spySms.injectedBodies.first, contains('SWIGGY'));
+      expect(spySms.drainCalled, isTrue);
+
+      final candidates = await container.read(smsSuggestionsControllerProvider.future);
+      expect(candidates, hasLength(1));
+      expect(candidates.first.id, 'demoid');
+    });
+
+    test('confirm calls confirmer and updates candidate status to confirmed', () async {
+      final database = FakeAppDatabase();
+      final candidate = SmsCandidate(
+        id: 'c1',
+        sender: 'SBI',
+        receivedAt: DateTime(2026, 6, 1),
+        bodyHash: 'hash1',
+        redactedPreview: 'Debited 500',
+        status: SmsCandidateStatus.pending,
+        modelReason: 'Standard',
+        createdAt: DateTime(2026, 6, 1),
+        proposedExpense: _parsedExpense(DateTime(2026, 6, 1)),
+      );
+      await database.smsCandidates.put('c1', candidate.toJson());
+
+      final spyConfirmer = _SpyParsedExpenseConfirmer();
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          parsedExpenseConfirmerProvider.overrideWithValue(spyConfirmer),
+          expenseReloaderProvider.overrideWithValue(const _NoopReloader()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final controller = container.read(smsSuggestionsControllerProvider.notifier);
+      await controller.confirm(candidate);
+
+      expect(spyConfirmer.confirmedParsed, isNotNull);
+      expect(spyConfirmer.confirmedParsed!.amount, candidate.proposedExpense.amount);
+      expect(spyConfirmer.confirmedSmsHash, candidate.bodyHash);
+
+      final candidates = await container.read(smsSuggestionsControllerProvider.future);
+      expect(candidates, isEmpty); // confirmed candidates are not pending anymore
+
+      final repo = container.read(smsCandidateRepositoryProvider);
+      final updated = await repo.byId('c1');
+      expect(updated!.status, SmsCandidateStatus.confirmed);
+    });
+
+    test('edit updates parsed expense and retains candidate status as pending', () async {
+      final database = FakeAppDatabase();
+      final candidate = SmsCandidate(
+        id: 'c1',
+        sender: 'SBI',
+        receivedAt: DateTime(2026, 6, 1),
+        bodyHash: 'hash1',
+        redactedPreview: 'Debited 500',
+        status: SmsCandidateStatus.pending,
+        modelReason: 'Standard',
+        createdAt: DateTime(2026, 6, 1),
+        proposedExpense: _parsedExpense(DateTime(2026, 6, 1)),
+      );
+      await database.smsCandidates.put('c1', candidate.toJson());
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final controller = container.read(smsSuggestionsControllerProvider.notifier);
+      final editedParsed = candidate.proposedExpense.copyWith(amount: 400);
+
+      await controller.edit(candidate, editedParsed);
+
+      final repo = container.read(smsCandidateRepositoryProvider);
+      final updated = await repo.byId('c1');
+      expect(updated!.status, SmsCandidateStatus.pending);
+      expect(updated.proposedExpense.amount, 400);
+      expect(updated.modelReason, 'Edited by user after on-device parsing.');
+    });
+
+    test('ignore updates candidate status to ignored', () async {
+      final database = FakeAppDatabase();
+      final candidate = SmsCandidate(
+        id: 'c1',
+        sender: 'SBI',
+        receivedAt: DateTime(2026, 6, 1),
+        bodyHash: 'hash1',
+        redactedPreview: 'Debited 500',
+        status: SmsCandidateStatus.pending,
+        modelReason: 'Standard',
+        createdAt: DateTime(2026, 6, 1),
+        proposedExpense: _parsedExpense(DateTime(2026, 6, 1)),
+      );
+      await database.smsCandidates.put('c1', candidate.toJson());
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final controller = container.read(smsSuggestionsControllerProvider.notifier);
+      await controller.ignore(candidate);
+
+      final repo = container.read(smsCandidateRepositoryProvider);
+      final updated = await repo.byId('c1');
+      expect(updated!.status, SmsCandidateStatus.ignored);
+    });
   });
+}
+
+final class _SpySmsGateway implements SmsGateway {
+  final List<String> injectedBodies = [];
+  bool drainCalled = false;
+
+  @override
+  Future<List<NativeSmsMessage>> drainPending() async {
+    drainCalled = true;
+    return [
+      NativeSmsMessage(
+        sender: 'HDFCBK',
+        body: 'HDFC Bank: Rs. 642.00 debited from A/c XX2182 via UPI to SWIGGY on 01-Jun.',
+        receivedAt: DateTime(2026, 6, 1, 12),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> injectFakeSms(String body) async {
+    injectedBodies.add(body);
+  }
+
+  @override
+  Future<List<NativeSmsMessage>> queryInbox(DateTime start, DateTime end) async => [];
+
+  @override
+  Future<void> showSyncNotification({
+    required String title,
+    required String message,
+    required int progress,
+    required int max,
+  }) async {}
+
+  @override
+  Future<void> cancelSyncNotification() async {}
+}
+
+final class _SpyParsedExpenseConfirmer implements ParsedExpenseConfirmer {
+  ParsedExpense? confirmedParsed;
+  String? confirmedSmsHash;
+
+  @override
+  Future<Expense> confirmParsed({
+    required ParsedExpense parsed,
+    required String smsHash,
+    String? notes,
+  }) async {
+    confirmedParsed = parsed;
+    confirmedSmsHash = smsHash;
+    return Expense(
+      id: 'exp-1',
+      amount: parsed.amount,
+      currency: parsed.currency,
+      occurredAt: parsed.date,
+      payee: parsed.payee,
+      category: parsed.category,
+      source: ExpenseSource.sms,
+      createdAt: DateTime(2026, 6, 1),
+      updatedAt: DateTime(2026, 6, 1),
+    );
+  }
 }
 
 ParsedExpense _parsedExpense(DateTime date) {
@@ -482,6 +678,17 @@ final class _FakeSmsGateway implements SmsGateway {
     if (error != null) throw error;
     return inboxMessages;
   }
+
+  @override
+  Future<void> showSyncNotification({
+    required String title,
+    required String message,
+    required int progress,
+    required int max,
+  }) async {}
+
+  @override
+  Future<void> cancelSyncNotification() async {}
 }
 
 final class _NoopParsedExpenseConfirmer implements ParsedExpenseConfirmer {

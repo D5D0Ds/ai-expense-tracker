@@ -79,40 +79,46 @@ final class ReportExportService {
     required ExpenseExportMarker expenseExportMarker,
     required ReportFileStore fileStore,
     required ReportShareGateway shareGateway,
-  }) : this._(
-         expenseExportMarker,
-         fileStore,
-         shareGateway,
-       );
-
-  const ReportExportService._(
-    this._expenseExportMarker,
-    this._fileStore,
-    this._shareGateway,
-  );
+  })  : _expenseExportMarker = expenseExportMarker,
+        _fileStore = fileStore,
+        _shareGateway = shareGateway;
 
   final ExpenseExportMarker _expenseExportMarker;
   final ReportFileStore _fileStore;
   final ReportShareGateway _shareGateway;
 
   /// Creates an Excel file for [expenses].
-  Future<File> exportExcel(List<Expense> expenses, DateTime month) async {
-    final bytes = buildExcelReportBytes(expenses);
-    final file = await _fileStore.reportFile(month, 'xlsx');
-    await file.writeAsBytes(bytes, flush: true);
-    await _expenseExportMarker.markExported(
-      expenses.map((expense) => expense.id),
-    );
-    return file;
-  }
+  Future<File> exportExcel(List<Expense> expenses, DateTime month) =>
+      _exportAndShare(
+        expenses,
+        month,
+        'xlsx',
+        (file) async => file.writeAsBytes(
+          buildExcelReportBytes(expenses),
+          flush: true,
+        ),
+      );
 
   /// Creates a PDF file for [expenses].
-  Future<File> exportPdf(List<Expense> expenses, DateTime month) async {
-    final file = await _fileStore.reportFile(month, 'pdf');
-    await file.writeAsBytes(
-      await buildPdfReportBytes(expenses, month),
-      flush: true,
-    );
+  Future<File> exportPdf(List<Expense> expenses, DateTime month) =>
+      _exportAndShare(
+        expenses,
+        month,
+        'pdf',
+        (file) async => file.writeAsBytes(
+          await buildPdfReportBytes(expenses, month),
+          flush: true,
+        ),
+      );
+
+  Future<File> _exportAndShare(
+    List<Expense> expenses,
+    DateTime month,
+    String extension,
+    Future<File> Function(File file) writeFile,
+  ) async {
+    final file = await _fileStore.reportFile(month, extension);
+    await writeFile(file);
     await _expenseExportMarker.markExported(
       expenses.map((expense) => expense.id),
     );

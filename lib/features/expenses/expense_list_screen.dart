@@ -57,7 +57,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         );
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             Row(
               children: [
@@ -73,12 +73,12 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             const Text(
               'Filter cards, accounts, UPI rails, and money between people.',
               style: TextStyle(color: AppTheme.textMuted, height: 1.35),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             GlassPanel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,7 +94,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -104,7 +104,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                           color: AppTheme.accent,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _SummaryTile(
                           label: 'Borrowed',
@@ -114,7 +114,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   InkWell(
                     onTap: () =>
                         setState(() => _filtersExpanded = !_filtersExpanded),
@@ -169,7 +169,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                             children: [
                               const SizedBox(height: 8),
                               const Divider(color: Color(0x1FFFFFFF)),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 16),
                               _FilterSection(
                                 title: 'Type',
                                 child: Wrap(
@@ -195,7 +195,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 16),
                               _FilterSection(
                                 title: 'Category',
                                 child: Wrap(
@@ -222,7 +222,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 16),
                               _FilterSection(
                                 title: 'Payment rail',
                                 child: Wrap(
@@ -250,7 +250,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                                 ),
                               ),
                               if (summary.sourceOptions.isNotEmpty) ...[
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 16),
                                 _FilterSection(
                                   title: 'Cards & accounts',
                                   child: Wrap(
@@ -286,10 +286,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             if (summary.filteredExpenses.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48, horizontal: 18),
+                padding: EdgeInsets.symmetric(vertical: 48, horizontal: 16),
                 child: Center(
                   child: Text(
                     'No ledger entries match this view.',
@@ -310,10 +310,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               for (final expense in summary.filteredExpenses) ...[
                 _ExpenseTile(expense: expense),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
               ],
             ],
           ],
@@ -332,10 +332,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   }
 }
 
-Color? _filterColor<T>(SelectableFilterOption<T> option) {
-  final accentValue = option.accentValue;
-  return accentValue == null ? null : Color(accentValue);
-}
+Color? _filterColor<T>(SelectableFilterOption<T> option) =>
+    option.accentValue == null ? null : Color(option.accentValue!);
 
 class _ExpenseTile extends StatelessWidget {
   const _ExpenseTile({required this.expense});
@@ -356,21 +354,14 @@ class _ExpenseTile extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: Color(expense.paymentMethod.accentValue).withValues(
+                  color: Color(expense.category.accentValue).withValues(
                     alpha: 0.14,
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
-                  switch (expense.paymentMethod) {
-                    PaymentMethodKind.creditCard => LucideIcons.creditCard,
-                    PaymentMethodKind.debitCard => LucideIcons.creditCard,
-                    PaymentMethodKind.bankAccount => LucideIcons.fileText,
-                    PaymentMethodKind.upi => LucideIcons.messageSquare,
-                    PaymentMethodKind.cash => LucideIcons.wallet,
-                    PaymentMethodKind.other => LucideIcons.receiptText,
-                  },
-                  color: Color(expense.paymentMethod.accentValue),
+                  _categoryIcon(expense.category),
+                  color: Color(expense.category.accentValue),
                 ),
               ),
               const SizedBox(width: 12),
@@ -546,4 +537,18 @@ class _FilterChip extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _categoryIcon(ExpenseCategory category) {
+  return switch (category) {
+    ExpenseCategory.food => LucideIcons.utensils,
+    ExpenseCategory.shopping => LucideIcons.shoppingBag,
+    ExpenseCategory.travel => LucideIcons.car,
+    ExpenseCategory.bills => LucideIcons.receipt,
+    ExpenseCategory.rent => LucideIcons.house,
+    ExpenseCategory.health => LucideIcons.heartPulse,
+    ExpenseCategory.entertainment => LucideIcons.clapperboard,
+    ExpenseCategory.transfer => LucideIcons.arrowLeftRight,
+    ExpenseCategory.other => LucideIcons.ellipsis,
+  };
 }

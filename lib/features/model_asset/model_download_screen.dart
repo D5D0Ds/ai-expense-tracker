@@ -29,10 +29,9 @@ class ModelDownloadScreen extends ConsumerWidget {
           title: const Text('Gemma model'),
         ),
         body: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           child: Center(
             child: GlassPanel(
-              padding: const EdgeInsets.all(22),
               child: modelAsync.when(
                 loading: () => const ShadProgress(),
                 error: (error, stackTrace) => Text(error.toString()),
@@ -59,7 +58,7 @@ class _ModelBody extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Icon(LucideIcons.bot, size: 42, color: AppTheme.accent),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
         const Text(
           'Gemma 4 E2B LiteRT-LM',
           textAlign: TextAlign.center,
@@ -67,11 +66,11 @@ class _ModelBody extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          model.message ?? 'Download once for private SMS parsing.',
+          model.message ?? 'Download model to enable SMS parsing.',
           textAlign: TextAlign.center,
           style: const TextStyle(color: Color(0xA3FFFFFF)),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
         ShadProgress(
           value: downloading
               ? model.progress
@@ -79,7 +78,7 @@ class _ModelBody extends ConsumerWidget {
               ? 1
               : 0,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Text(
           downloading
               ? '${(model.progress * 100).toStringAsFixed(1)}%  ${formatSpeed(model.bytesPerSecond)}  ETA ${formatEta(model.eta)}'
@@ -87,7 +86,7 @@ class _ModelBody extends ConsumerWidget {
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white60, fontSize: 12),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
         if (downloading)
           ShadButton.destructive(
             onPressed: ref.read(modelAssetControllerProvider.notifier).cancel,

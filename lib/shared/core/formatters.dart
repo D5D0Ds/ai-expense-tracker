@@ -24,9 +24,11 @@ String formatSpeed(double bytesPerSecond) {
 /// Formats durations for download ETA.
 String formatEta(Duration? duration) {
   if (duration == null) return '--';
-  if (duration.inHours > 0)
+  if (duration.inHours > 0) {
     return '${duration.inHours}h ${duration.inMinutes % 60}m';
-  if (duration.inMinutes > 0)
+  }
+  if (duration.inMinutes > 0) {
     return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+  }
   return '${duration.inSeconds}s';
 }
