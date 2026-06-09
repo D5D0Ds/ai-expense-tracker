@@ -59,6 +59,12 @@ final class ExpenseRepository
   /// Finds an expense by id.
   Future<Expense?> byId(String id) async => _store.byId(id);
 
+  /// Returns whether an expense linked to the given SMS hash already exists.
+  Future<bool> hasRawSmsHash(String rawSmsHash) async {
+    final expenses = await all();
+    return expenses.any((expense) => expense.rawSmsHash == rawSmsHash);
+  }
+
   /// Adds a manually entered expense.
   Future<Expense> addManual({
     required double amount,

@@ -144,7 +144,26 @@ class GemmaEngineHolder(private val context: Context) {
         val cacheDirectory = File(context.cacheDir, "litertlm").apply {
             mkdirs()
         }
-        val backend = Backend.GPU()
+        // Try GPU first; fall back to CPU on devices without compatible acceleration.
+        val (backend, backendName) = try {
+            val gpu = Backend.GPU()
+            val testEngine = Engine(
+                EngineConfig(
+                    modelPath = path,
+                    backend = gpu,
+                    visionBackend = gpu,
+                    audioBackend = Backend.CPU(),
+                    maxNumTokens = 512,
+                    maxNumImages = null,
+                    cacheDir = cacheDirectory.absolutePath,
+                ),
+            )
+            testEngine.initialize()
+            testEngine.close()
+            gpu to "GPU"
+        } catch (_: Throwable) {
+            Backend.CPU() to "CPU"
+        }
         val created = Engine(
             EngineConfig(
                         modelPath = path,
@@ -159,7 +178,7 @@ class GemmaEngineHolder(private val context: Context) {
         val startedAt = SystemClock.elapsedRealtime()
         created.initialize()
         initTimeMs = SystemClock.elapsedRealtime() - startedAt
-        return created to "GPU"
+        return created to backendName
     }
 
     @OptIn(ExperimentalApi::class)
@@ -169,7 +188,7 @@ class GemmaEngineHolder(private val context: Context) {
                 systemInstruction = Contents.of(systemPrompt),
                 samplerConfig = SamplerConfig(
                     topK = 1,
-                    topP = 0.0,
+                    topP = 1.0,
                     temperature = 0.0,
                     seed = 7,
                 ),
@@ -242,8 +261,12 @@ class GemmaEngineHolder(private val context: Context) {
     }
 
     private fun buildUserPrompt(smsBody: String): String {
+        val currentTime = java.text.SimpleDateFormat(
+            "yyyy-MM-dd'T'HH:mm:ss",
+            java.util.Locale.US,
+        ).format(java.util.Date())
         return buildString {
-            appendLine("Current time: ${java.time.OffsetDateTime.now()}")
+            appendLine("Current time: $currentTime")
             appendLine("Return JSON only. Begin with { and end with }.")
             appendLine("SMS:")
             append(smsBody)

@@ -43,6 +43,17 @@ final class SmsCandidateRepository {
     return candidates.any((candidate) => candidate.bodyHash == bodyHash);
   }
 
+  /// Returns whether a pending (unreviewed) candidate with this hash exists.
+  /// Ignored or confirmed candidates are not counted so they can re-appear.
+  Future<bool> containsPendingHash(String bodyHash) async {
+    final candidates = await all();
+    return candidates.any(
+      (candidate) =>
+          candidate.bodyHash == bodyHash &&
+          candidate.status == SmsCandidateStatus.pending,
+    );
+  }
+
   /// Adds or replaces a candidate.
   Future<void> upsert(SmsCandidate candidate) => _store.upsert(candidate);
 }

@@ -107,8 +107,8 @@ void main() {
         filter: const ExpenseListFilter(),
       );
 
-      // Assert
-      expect(summary.outgoingTotal, 150);
+      // Assert: outgoingTotal counts only expenses, not loans given (lent).
+      expect(summary.outgoingTotal, 100);
       expect(summary.borrowedTotal, 75);
     });
   });

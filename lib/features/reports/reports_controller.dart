@@ -91,6 +91,11 @@ final class ReportController extends AsyncNotifier<ExportedReport?> {
         ReportFormat.pdf => await exportService.exportPdf(expenses, month),
       };
       await exportService.share(file);
+      // Only mark exported after the share succeeds so a cancellation or
+      // failure does not leave the data state permanently incorrect.
+      await exportService.markExported(
+        expenses.map((expense) => expense.id),
+      );
       await ref.read(expenseReloaderProvider).reload();
       return ExportedReport(
         path: file.path,

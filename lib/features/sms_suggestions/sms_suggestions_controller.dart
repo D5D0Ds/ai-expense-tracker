@@ -89,9 +89,15 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
   }
 
   /// Drains native SMS queue and parses unseen messages.
+  ///
+  /// Uses [continueOnParseError] so that a single parse failure does not
+  /// permanently drop the remaining messages from the native queue.
   Future<void> drainNativeQueue() async {
     final messages = await ref.read(smsGatewayProvider).drainPending();
-    await _parseAndQueueAll(messages);
+    await _parseAndQueueAll(
+      messages,
+      continueOnParseError: true,
+    );
   }
 
   /// Parses and queues a raw SMS body.
@@ -116,7 +122,16 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
   }) async {
     final hash = smsBodyHash(body);
     final repository = ref.read(smsCandidateRepositoryProvider);
-    if (await repository.containsHash(hash)) return _SmsQueueResult.skipped;
+    // Skip only if this SMS is already a confirmed expense, or already
+    // pending in review. Rejected/ignored candidates are allowed to re-appear
+    // so the user can review them again. Deleting an expense removes its
+    // rawSmsHash so the SMS can be re-parsed.
+    if (await ref.read(expenseHashCheckerProvider)(hash)) {
+      return _SmsQueueResult.skipped;
+    }
+    if (await repository.containsPendingHash(hash)) {
+      return _SmsQueueResult.skipped;
+    }
 
     final parsed = await ref.read(gemmaExpenseParserProvider).parse(body);
     final candidate = buildPendingSmsCandidate(

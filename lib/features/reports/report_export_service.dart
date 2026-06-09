@@ -119,14 +119,16 @@ final class ReportExportService {
   ) async {
     final file = await _fileStore.reportFile(month, extension);
     await writeFile(file);
-    await _expenseExportMarker.markExported(
-      expenses.map((expense) => expense.id),
-    );
     return file;
   }
 
   /// Shares a report file through Android share sheet.
   Future<void> share(File file) async {
     await _shareGateway.share(file);
+  }
+
+  /// Marks expenses as exported after a successful share.
+  Future<void> markExported(Iterable<String> ids) async {
+    await _expenseExportMarker.markExported(ids);
   }
 }

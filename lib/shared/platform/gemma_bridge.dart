@@ -105,9 +105,14 @@ final class GemmaBridge implements GemmaGateway {
       {'smsBody': smsBody},
     );
     if (response == null || response.trim().isEmpty) return null;
-    return _parsedExpenseFromModelJson(
-      jsonDecode(response) as Map<String, dynamic>,
-    );
+    final Map<String, dynamic>? json;
+    try {
+      json = jsonDecode(response) as Map<String, dynamic>;
+    } on FormatException catch (_) {
+      return null;
+    }
+    if (json == null) return null;
+    return _parsedExpenseFromModelJson(json);
   }
 
   /// Returns current native model diagnostics for live verification.

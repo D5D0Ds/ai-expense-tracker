@@ -80,7 +80,7 @@ void main() {
     });
 
     test(
-      'exportExcel writes an xlsx file and marks expenses exported',
+      'exportExcel writes an xlsx file',
       () async {
         // Arrange
         final expenses = [_expense(id: 'expense-1')];
@@ -93,11 +93,10 @@ void main() {
         expect(file.path, endsWith('expense-report-2026-06.xlsx'));
         expect(await file.exists(), isTrue);
         expect(await file.length(), greaterThan(0));
-        expect(exportMarker.markedIds, ['expense-1']);
       },
     );
 
-    test('exportPdf writes a pdf file and marks expenses exported', () async {
+    test('exportPdf writes a pdf file', () async {
       // Arrange
       final expenses = [_expense(id: 'expense-1')];
       final month = DateTime(2026, 6);
@@ -109,7 +108,14 @@ void main() {
       expect(file.path, endsWith('expense-report-2026-06.pdf'));
       expect(await file.exists(), isTrue);
       expect(await file.length(), greaterThan(0));
-      expect(exportMarker.markedIds, ['expense-1']);
+    });
+
+    test('markExported delegates to the injected marker', () async {
+      // Act
+      await service.markExported(['expense-1', 'expense-2']);
+
+      // Assert
+      expect(exportMarker.markedIds, ['expense-1', 'expense-2']);
     });
 
     test('share delegates to the injected share gateway', () async {

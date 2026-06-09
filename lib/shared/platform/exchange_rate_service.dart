@@ -55,8 +55,10 @@ final class ExchangeRateRepository implements ExchangeRateService {
       if (inr != null && inr > 0) {
         await _settings.put(_settingsKey, inr);
       }
-    } on Object {
+    } on DioException catch (_) {
       // Network errors must not crash the app.
+    } on Exception catch (_) {
+      // Other non-fatal errors (e.g., malformed JSON) must not crash.
     }
   }
 

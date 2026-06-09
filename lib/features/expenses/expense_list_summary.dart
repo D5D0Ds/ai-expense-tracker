@@ -81,7 +81,7 @@ ExpenseListSummary computeExpenseListSummary({
     if (expense.transactionKind == TransactionKind.borrowed) {
       borrowedTotal += expense.amount;
     }
-    if (!expense.transactionKind.isIncoming) {
+    if (expense.transactionKind.countsTowardsSpend) {
       outgoingTotal += expense.amount;
     }
   }

@@ -11,7 +11,7 @@ class SmsReceiver : BroadcastReceiver() {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         val store = SmsQueueStore(context.applicationContext)
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
-        for (message in messages) {
+        messages?.forEach { message ->
             store.enqueue(
                 sender = message.displayOriginatingAddress ?: "UNKNOWN",
                 body = message.displayMessageBody.orEmpty(),

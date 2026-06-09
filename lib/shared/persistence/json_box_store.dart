@@ -28,11 +28,20 @@ final class JsonBoxStore<T> {
   final String Function(T entity) _idOf;
 
   /// Returns all valid JSON entities in the box.
+  ///
+  /// Non-Map entries are logged and skipped so schema corruption is visible.
   List<T> all() {
-    return _box.values
-        .whereType<Map<dynamic, dynamic>>()
-        .map(_fromJson)
-        .toList();
+    final entries = _box.values.toList();
+    final valid = <Map<dynamic, dynamic>>[];
+    for (final entry in entries) {
+      if (entry is Map<dynamic, dynamic>) {
+        valid.add(entry);
+      } else {
+        // ignore: avoid_print
+        print('JsonBoxStore: skipped corrupted non-Map entry: $entry');
+      }
+    }
+    return valid.map(_fromJson).toList();
   }
 
   /// Finds an entity by id.

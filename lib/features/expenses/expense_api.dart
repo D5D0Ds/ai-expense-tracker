@@ -25,3 +25,8 @@ final parsedExpenseConfirmerProvider = Provider<ParsedExpenseConfirmer>((ref) {
 final expenseExportMarkerProvider = Provider<ExpenseExportMarker>((ref) {
   return ref.watch(expenseRepositoryProvider);
 });
+
+/// Returns whether an expense linked to the given SMS hash already exists.
+final expenseHashCheckerProvider = Provider<Future<bool> Function(String)>((ref) {
+  return ref.read(expenseRepositoryProvider).hasRawSmsHash;
+});
