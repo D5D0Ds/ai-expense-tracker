@@ -168,6 +168,8 @@ TrendData computeTrendData(List<Expense> allExpenses, TrendFilter filter) {
         final accountKey = _accountKey(expense);
         accountTotals[accountKey] =
             (accountTotals[accountKey] ?? 0) + expense.amount;
+      case TransactionKind.income:
+        break;
       case TransactionKind.lent:
         totalLent += expense.amount;
       case TransactionKind.borrowed:

@@ -103,6 +103,8 @@ DashboardSummary computeDashboardSummary({
           (value) => value + expense.amount,
           ifAbsent: () => expense.amount,
         );
+      case TransactionKind.income:
+        break;
       case TransactionKind.lent:
         totalLent += expense.amount;
       case TransactionKind.borrowed:

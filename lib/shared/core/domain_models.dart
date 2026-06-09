@@ -145,6 +145,9 @@ enum TransactionKind {
   /// Merchant or household spend.
   expense('Expense', 0xFFFFFFFF),
 
+  /// Money received that is not a loan (cashback, refund, salary, reward).
+  income('Income', 0xFF4ADE80),
+
   /// Money given out to another person.
   lent('Lent', 0xFFF59E0B),
 
@@ -163,7 +166,7 @@ enum TransactionKind {
   bool get countsTowardsSpend => this == expense;
 
   /// Whether the money flow is incoming.
-  bool get isIncoming => this == borrowed;
+  bool get isIncoming => this == income || this == borrowed;
 
   /// Finds a kind from model output or persisted data.
   static TransactionKind fromValue(String? value) {
@@ -179,8 +182,24 @@ enum TransactionKind {
     if (exact != null) return exact;
     if (normalized == 'spend' ||
         normalized == 'spent' ||
-        normalized == 'outgoing expense') {
+        normalized == 'outgoing expense' ||
+        normalized == 'debit' ||
+        normalized == 'debited' ||
+        normalized == 'payment' ||
+        normalized == 'paid') {
       return expense;
+    }
+    if (normalized == 'income' ||
+        normalized == 'credit' ||
+        normalized == 'credited' ||
+        normalized == 'cashback' ||
+        normalized == 'refund' ||
+        normalized == 'reward' ||
+        normalized == 'salary' ||
+        normalized == 'deposit' ||
+        normalized == 'incoming' ||
+        normalized == 'inflow') {
+      return income;
     }
     if (normalized == 'loaned' ||
         normalized == 'lend' ||
@@ -191,14 +210,8 @@ enum TransactionKind {
     if (normalized == 'loan' ||
         normalized == 'borrow' ||
         normalized == 'borrowed' ||
-        normalized == 'received' ||
-        normalized == 'credited' ||
-        normalized == 'credit' ||
-        normalized == 'inflow' ||
-        normalized == 'incoming' ||
-        normalized == 'cashback' ||
-        normalized == 'refund' ||
-        normalized == 'reward') {
+        normalized == 'received from' ||
+        normalized == 'loan taken') {
       return borrowed;
     }
     return expense;

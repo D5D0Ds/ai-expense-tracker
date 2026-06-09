@@ -34,12 +34,14 @@ class DirectionalAmount extends StatelessWidget {
   Widget build(BuildContext context) {
     final triangleColor = switch (kind) {
       TransactionKind.expense => AppTheme.coral,
+      TransactionKind.income => const Color(0xFF4ADE80),
       TransactionKind.lent => AppTheme.amber,
       TransactionKind.borrowed => AppTheme.turquoise,
     };
 
     final textColor = switch (kind) {
       TransactionKind.expense => Colors.white,
+      TransactionKind.income => const Color(0xFF4ADE80),
       TransactionKind.lent => Colors.white,
       TransactionKind.borrowed => AppTheme.turquoise,
     };
@@ -68,6 +70,7 @@ class DirectionalAmount extends StatelessWidget {
           color: triangleColor,
           direction: switch (kind) {
             TransactionKind.expense => _TriangleDirection.down,
+            TransactionKind.income => _TriangleDirection.up,
             TransactionKind.lent => _TriangleDirection.upRight,
             TransactionKind.borrowed => _TriangleDirection.up,
           },

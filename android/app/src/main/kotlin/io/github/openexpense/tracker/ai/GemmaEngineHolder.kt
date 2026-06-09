@@ -233,9 +233,9 @@ class GemmaEngineHolder(private val context: Context) {
             Non-thinking mode. Do not analyze out loud. Do not write thoughts, explanations, markdown, or prose.
             Parse Indian bank/UPI SMS and output exactly one minified JSON object.
             Keys: amount,currency,date,payee,category,transactionKind,paymentMethod,confidence,reason,isPersonLike,accountHint,sourceLabel,fundingSourceLabel.
-            Enums: category Food|Shopping|Travel|Bills|Health|Entertainment|Transfer|Other; transactionKind Expense|Lent|Borrowed; paymentMethod Credit card|Debit card|Account|UPI|Cash|Other.
+            Enums: category Food|Shopping|Travel|Bills|Health|Entertainment|Transfer|Other; transactionKind Expense|Income|Lent|Borrowed; paymentMethod Credit card|Debit card|Account|UPI|Cash|Other.
             Use INR unless explicit. Use null for unknown optional fields. Keep reason under 8 words. Person transfers use Transfer.
-            Cashback, refunds, and credits are transactionKind Borrowed (incoming money). Debits and payments are transactionKind Expense.
+            transactionKind rules: Expense = debit/payment/spend. Income = cashback/refund/credit/reward/salary (money you keep). Lent = money given to person (expect repayment). Borrowed = money received from person (must repay).
             """.trimIndent()
 
         private const val TAG = "GemmaEngineHolder"
