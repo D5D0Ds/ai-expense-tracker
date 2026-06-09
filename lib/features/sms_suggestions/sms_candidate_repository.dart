@@ -21,9 +21,10 @@ final class SmsCandidateRepository {
 
   final JsonBoxStore<SmsCandidate> _store;
 
-  /// Returns all suggestions ordered newest first.
+  /// Returns all suggestions ordered by time of happening, newest first.
   Future<List<SmsCandidate>> all() async =>
-      _store.all()..sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
+      _store.all()
+        ..sort((a, b) => b.proposedExpense.date.compareTo(a.proposedExpense.date));
 
   /// Returns pending suggestions.
   Future<List<SmsCandidate>> pending() async {
