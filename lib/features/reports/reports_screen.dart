@@ -1,7 +1,9 @@
 import 'package:ai_expense_tracker/features/expenses/expense_api.dart';
 import 'package:ai_expense_tracker/features/reports/report_chart_data.dart';
+import 'package:ai_expense_tracker/features/reports/report_trend_data.dart';
 import 'package:ai_expense_tracker/features/reports/reports_controller.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
+import 'package:ai_expense_tracker/shared/core/filter_options.dart';
 import 'package:ai_expense_tracker/shared/core/formatters.dart';
 import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/theme/app_theme.dart';
@@ -322,11 +324,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return _buildDonutChart(
       data: data,
       colorMapper: (name) {
-        final cat = ExpenseCategory.values.firstWhere(
-          (c) => c.label == name,
-          orElse: () => ExpenseCategory.other,
-        );
-        return Color(cat.accentValue).withValues(alpha: 0.85);
+        return Color(
+          categoryAccentForChartLabel(name),
+        ).withValues(alpha: 0.85);
       },
     );
   }
@@ -349,11 +349,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return _buildDonutChart(
       data: data,
       colorMapper: (name) {
-        final method = PaymentMethodKind.values.firstWhere(
-          (m) => m.label == name,
-          orElse: () => PaymentMethodKind.other,
-        );
-        return Color(method.accentValue).withValues(alpha: 0.85);
+        return Color(
+          paymentMethodAccentForChartLabel(name),
+        ).withValues(alpha: 0.85);
       },
     );
   }
@@ -568,25 +566,21 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                         icon: LucideIcons.tag,
                         label: 'Category',
                         options: [
-                          _FilterOption(
-                            label: 'All',
-                            selected: filter.category == null,
-                            onTap: () =>
-                                ref.read(trendFilterProvider.notifier).filter =
-                                    filter.copyWith(category: null),
-                          ),
-                          for (final cat in ExpenseCategory.values)
+                          for (final cat in buildNullableFilterOptions(
+                            selected: filter.category,
+                            values: ExpenseCategory.values,
+                            labelFor: (category) => category.label,
+                            accentFor: (category) => category.accentValue,
+                          ))
                             _FilterOption(
                               label: cat.label,
-                              selected: filter.category == cat,
-                              color: Color(cat.accentValue),
+                              selected: cat.selected,
+                              color: _filterColor(cat),
                               onTap: () =>
                                   ref
                                       .read(trendFilterProvider.notifier)
                                       .filter = filter.copyWith(
-                                    category: filter.category == cat
-                                        ? null
-                                        : cat,
+                                    category: cat.nextValue,
                                   ),
                             ),
                         ],
@@ -598,26 +592,21 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                         icon: LucideIcons.creditCard,
                         label: 'Payment',
                         options: [
-                          _FilterOption(
-                            label: 'All',
-                            selected: filter.paymentMethod == null,
-                            onTap: () =>
-                                ref.read(trendFilterProvider.notifier).filter =
-                                    filter.copyWith(paymentMethod: null),
-                          ),
-                          for (final method in PaymentMethodKind.values)
+                          for (final method in buildNullableFilterOptions(
+                            selected: filter.paymentMethod,
+                            values: PaymentMethodKind.values,
+                            labelFor: (method) => method.label,
+                            accentFor: (method) => method.accentValue,
+                          ))
                             _FilterOption(
                               label: method.label,
-                              selected: filter.paymentMethod == method,
-                              color: Color(method.accentValue),
+                              selected: method.selected,
+                              color: _filterColor(method),
                               onTap: () =>
                                   ref
                                       .read(trendFilterProvider.notifier)
                                       .filter = filter.copyWith(
-                                    paymentMethod:
-                                        filter.paymentMethod == method
-                                        ? null
-                                        : method,
+                                    paymentMethod: method.nextValue,
                                   ),
                             ),
                         ],
@@ -629,26 +618,21 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                         icon: LucideIcons.arrowLeftRight,
                         label: 'Kind',
                         options: [
-                          _FilterOption(
-                            label: 'All',
-                            selected: filter.transactionKind == null,
-                            onTap: () =>
-                                ref.read(trendFilterProvider.notifier).filter =
-                                    filter.copyWith(transactionKind: null),
-                          ),
-                          for (final kind in TransactionKind.values)
+                          for (final kind in buildNullableFilterOptions(
+                            selected: filter.transactionKind,
+                            values: TransactionKind.values,
+                            labelFor: (kind) => kind.label,
+                            accentFor: (kind) => kind.accentValue,
+                          ))
                             _FilterOption(
                               label: kind.label,
-                              selected: filter.transactionKind == kind,
-                              color: Color(kind.accentValue),
+                              selected: kind.selected,
+                              color: _filterColor(kind),
                               onTap: () =>
                                   ref
                                       .read(trendFilterProvider.notifier)
                                       .filter = filter.copyWith(
-                                    transactionKind:
-                                        filter.transactionKind == kind
-                                        ? null
-                                        : kind,
+                                    transactionKind: kind.nextValue,
                                   ),
                             ),
                         ],
@@ -713,6 +697,11 @@ class _FilterRow extends StatelessWidget {
       ],
     );
   }
+}
+
+Color? _filterColor<T>(SelectableFilterOption<T> option) {
+  final accentValue = option.accentValue;
+  return accentValue == null ? null : Color(accentValue);
 }
 
 class _FilterOption extends StatelessWidget {

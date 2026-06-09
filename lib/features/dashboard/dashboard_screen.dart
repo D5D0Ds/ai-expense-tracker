@@ -2,6 +2,7 @@ import 'package:ai_expense_tracker/features/dashboard/dashboard_summary.dart';
 import 'package:ai_expense_tracker/features/expenses/expense_controller.dart';
 import 'package:ai_expense_tracker/features/model_asset/model_asset_controller.dart';
 import 'package:ai_expense_tracker/features/settings/budget_controller.dart';
+import 'package:ai_expense_tracker/features/settings/budget_input.dart';
 import 'package:ai_expense_tracker/features/sms_suggestions/sms_suggestions_controller.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/formatters.dart';
@@ -214,16 +215,13 @@ class _HeroCard extends ConsumerWidget {
           const SizedBox(height: 14),
           InkWell(
             onTap: () {
-              final monthKey = ref
-                  .read(budgetControllerProvider.notifier)
-                  .getMonthKey(month);
               showModalBottomSheet<void>(
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
                 builder: (_) => _BudgetEditorSheet(
                   initialBudget: budget,
-                  monthKey: monthKey,
+                  month: month,
                   monthLabel: monthFormat.format(month),
                 ),
               );
@@ -345,12 +343,12 @@ class _HeroCard extends ConsumerWidget {
 class _BudgetEditorSheet extends StatefulWidget {
   const _BudgetEditorSheet({
     required this.initialBudget,
-    required this.monthKey,
+    required this.month,
     required this.monthLabel,
   });
 
   final double initialBudget;
-  final String monthKey;
+  final DateTime month;
   final String monthLabel;
 
   @override
@@ -447,12 +445,12 @@ class _BudgetEditorSheetState extends State<_BudgetEditorSheet> {
                   Expanded(
                     child: ShadButton(
                       onPressed: () async {
-                        final val = double.tryParse(_controller.text);
+                        final val = parseBudgetAmount(_controller.text);
                         if (val != null && val >= 0) {
                           final navigator = Navigator.of(context);
                           await ref
                               .read(budgetControllerProvider.notifier)
-                              .setBudget(widget.monthKey, val);
+                              .setBudgetForMonth(widget.month, val);
                           navigator.pop();
                         }
                       },

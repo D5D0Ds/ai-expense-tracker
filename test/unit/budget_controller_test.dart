@@ -45,6 +45,15 @@ void main() {
       expect(budget, 30000);
     });
 
+    test('saves budget for a DateTime month', () async {
+      final controller = container.read(budgetControllerProvider.notifier);
+
+      await controller.setBudgetForMonth(DateTime(2026, 6, 15), 32000);
+
+      final state = container.read(budgetControllerProvider);
+      expect(state['2026-06'], 32000);
+    });
+
     test(
       'retrieves closest past month budget when no exact match exists',
       () async {

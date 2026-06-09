@@ -1,4 +1,13 @@
+import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Provides access to native SMS operations.
+final smsGatewayProvider = Provider<SmsGateway>((ref) {
+  return NativeSmsBridge(
+    fallbackReceivedAt: ref.watch(nowProvider),
+  );
+});
 
 /// Contract for Android SMS queue operations.
 abstract interface class SmsGateway {
@@ -31,12 +40,15 @@ final class NativeSmsMessage {
   final DateTime receivedAt;
 
   /// Deserializes from platform data.
-  factory NativeSmsMessage.fromMap(Map<dynamic, dynamic> map) {
+  factory NativeSmsMessage.fromMap(
+    Map<dynamic, dynamic> map, {
+    required DateTime fallbackReceivedAt,
+  }) {
     return NativeSmsMessage(
       sender: map['sender'] as String? ?? 'UNKNOWN',
       body: map['body'] as String? ?? '',
       receivedAt: DateTime.fromMillisecondsSinceEpoch(
-        map['receivedAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+        map['receivedAt'] as int? ?? fallbackReceivedAt.millisecondsSinceEpoch,
       ),
     );
   }
@@ -45,7 +57,12 @@ final class NativeSmsMessage {
 /// Method-channel facade for Android SMS queue operations.
 final class NativeSmsBridge implements SmsGateway {
   /// Creates a bridge.
-  const NativeSmsBridge();
+  const NativeSmsBridge({
+    required this.fallbackReceivedAt,
+  });
+
+  /// Clock used when platform data omits a received timestamp.
+  final DateTime Function() fallbackReceivedAt;
 
   static const _channel = MethodChannel('ai_expense_tracker/sms');
 
@@ -55,7 +72,7 @@ final class NativeSmsBridge implements SmsGateway {
     final raw = await _channel.invokeMethod<List<dynamic>>('drainPending');
     return (raw ?? const [])
         .whereType<Map<dynamic, dynamic>>()
-        .map(NativeSmsMessage.fromMap)
+        .map(_messageFromMap)
         .toList();
   }
 
@@ -77,7 +94,14 @@ final class NativeSmsBridge implements SmsGateway {
     });
     return (raw ?? const [])
         .whereType<Map<dynamic, dynamic>>()
-        .map(NativeSmsMessage.fromMap)
+        .map(_messageFromMap)
         .toList();
+  }
+
+  NativeSmsMessage _messageFromMap(Map<dynamic, dynamic> map) {
+    return NativeSmsMessage.fromMap(
+      map,
+      fallbackReceivedAt: fallbackReceivedAt(),
+    );
   }
 }

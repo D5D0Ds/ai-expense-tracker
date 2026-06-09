@@ -105,7 +105,9 @@ final class GemmaBridge implements GemmaGateway {
       {'smsBody': smsBody},
     );
     if (response == null || response.trim().isEmpty) return null;
-    return ParsedExpense.fromJson(jsonDecode(response) as Map<String, dynamic>);
+    return _parsedExpenseFromModelJson(
+      jsonDecode(response) as Map<String, dynamic>,
+    );
   }
 
   /// Returns current native model diagnostics for live verification.
@@ -116,4 +118,53 @@ final class GemmaBridge implements GemmaGateway {
     );
     return GemmaRuntimeDiagnostics.fromMap(response);
   }
+}
+
+ParsedExpense _parsedExpenseFromModelJson(Map<String, dynamic> json) {
+  final amount = _numberFrom(json['amount']);
+  final date =
+      DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now();
+  final payee =
+      _stringFrom(json['payee']) ??
+      _stringFrom(json['sourceLabel']) ??
+      _stringFrom(json['fundingSourceLabel']) ??
+      'Unknown';
+  return ParsedExpense(
+    amount: amount,
+    currency: _stringFrom(json['currency']) ?? 'INR',
+    date: date,
+    payee: payee,
+    category: ExpenseCategory.fromLabel(_stringFrom(json['category'])),
+    transactionKind: TransactionKind.fromValue(
+      _stringFrom(json['transactionKind']),
+    ),
+    paymentMethod: PaymentMethodKind.fromValue(
+      _stringFrom(json['paymentMethod']),
+    ),
+    confidence: _numberFrom(
+      json['confidence'],
+      fallback: 0.5,
+    ).clamp(0, 1).toDouble(),
+    reason: _stringFrom(json['reason']) ?? 'Parsed on device.',
+    isPersonLike: json['isPersonLike'] == true,
+    accountHint: _stringFrom(json['accountHint']),
+    sourceLabel: _stringFrom(json['sourceLabel']),
+    fundingSourceLabel: _stringFrom(json['fundingSourceLabel']),
+  );
+}
+
+double _numberFrom(Object? value, {double fallback = 0}) {
+  if (value is num) return value.toDouble();
+  if (value is String) {
+    return double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        fallback;
+  }
+  return fallback;
+}
+
+String? _stringFrom(Object? value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  if (text.isEmpty || text.toLowerCase() == 'null') return null;
+  return text;
 }

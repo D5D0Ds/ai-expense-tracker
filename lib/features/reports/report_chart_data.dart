@@ -1,4 +1,5 @@
-import 'package:ai_expense_tracker/features/reports/reports_controller.dart';
+import 'package:ai_expense_tracker/features/reports/report_trend_data.dart';
+import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:intl/intl.dart';
 
 /// Chart row keys used by report charts.
@@ -67,6 +68,26 @@ List<Map<String, Object>> buildAccountChartData(
 /// Whether any chart row has a positive amount.
 bool hasPositiveAmount(List<Map<String, Object>> data) {
   return data.any((row) => (row[ReportChartFields.amount]! as num) > 0);
+}
+
+/// Returns a category accent value for a chart label.
+int categoryAccentForChartLabel(String label) {
+  return ExpenseCategory.values
+      .firstWhere(
+        (category) => category.label == label,
+        orElse: () => ExpenseCategory.other,
+      )
+      .accentValue;
+}
+
+/// Returns a payment-method accent value for a chart label.
+int paymentMethodAccentForChartLabel(String label) {
+  return PaymentMethodKind.values
+      .firstWhere(
+        (method) => method.label == label,
+        orElse: () => PaymentMethodKind.other,
+      )
+      .accentValue;
 }
 
 List<Map<String, Object>> _rankedChartData<T>(

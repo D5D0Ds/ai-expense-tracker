@@ -26,6 +26,11 @@ final class BudgetController extends Notifier<Map<String, double>> {
     await ref.read(budgetRepositoryProvider).saveAll(updated);
   }
 
+  /// Sets the budget for the month containing [date].
+  Future<void> setBudgetForMonth(DateTime date, double amount) async {
+    await setBudget(getMonthKey(date), amount);
+  }
+
   /// Helper to get the month key as a String ('YYYY-MM') from a DateTime.
   String getMonthKey(DateTime date) {
     final y = date.year.toString();

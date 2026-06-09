@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:ai_expense_tracker/features/model_asset/model_asset_config.dart';
 import 'package:ai_expense_tracker/features/model_asset/model_asset_service.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,18 +8,18 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ModelAssetService', () {
     test('accepts exact expected Gemma model size', () {
-      expect(ModelAssetService.isValidModelSize(gemmaExpectedBytes), isTrue);
+      expect(isValidGemmaModelSize(gemmaExpectedBytes), isTrue);
     });
 
     test('accepts model sizes inside five megabyte tolerance', () {
       expect(
-        ModelAssetService.isValidModelSize(
+        isValidGemmaModelSize(
           gemmaExpectedBytes + gemmaSizeToleranceBytes,
         ),
         isTrue,
       );
       expect(
-        ModelAssetService.isValidModelSize(
+        isValidGemmaModelSize(
           gemmaExpectedBytes - gemmaSizeToleranceBytes,
         ),
         isTrue,
@@ -27,7 +28,7 @@ void main() {
 
     test('rejects model sizes outside five megabyte tolerance', () {
       expect(
-        ModelAssetService.isValidModelSize(
+        isValidGemmaModelSize(
           gemmaExpectedBytes + gemmaSizeToleranceBytes + 1,
         ),
         isFalse,

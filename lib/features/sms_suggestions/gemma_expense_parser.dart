@@ -5,12 +5,9 @@ import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/platform/gemma_bridge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Provides SMS parsing through Gemma with a deterministic local fallback.
+/// Provides SMS parsing through Gemma.
 final gemmaExpenseParserProvider = Provider<GemmaExpenseParser>((ref) {
-  return GemmaExpenseParser(
-    ref.watch(gemmaGatewayProvider),
-    now: ref.watch(nowProvider),
-  );
+  return GemmaExpenseParser(ref.watch(gemmaGatewayProvider));
 });
 
 enum _MoneyDirection { outgoing, incoming, unknown }
@@ -18,35 +15,25 @@ enum _MoneyDirection { outgoing, incoming, unknown }
 /// Parses Indian bank and UPI SMS messages into editable expense proposals.
 final class GemmaExpenseParser {
   /// Creates a parser.
-  const GemmaExpenseParser(
-    GemmaGateway bridge, {
-    required DateTime Function() now,
-  }) : this._(bridge, now);
+  const GemmaExpenseParser(GemmaGateway bridge) : this._(bridge);
 
-  const GemmaExpenseParser._(this._bridge, this._now);
+  const GemmaExpenseParser._(this._bridge);
 
   final GemmaGateway _bridge;
-  final DateTime Function() _now;
 
-  /// Parses a raw SMS body.
+  /// Parses a raw SMS body with the native Gemma runtime.
   Future<ParsedExpense> parse(String smsBody) async {
-    try {
-      final parsed = await _bridge.parseSms(smsBody);
-      if (parsed != null &&
-          parsed.amount > 0 &&
-          parsed.payee.trim().isNotEmpty) {
-        return parsed;
-      }
-    } on Object {
-      // The deterministic fallback keeps the product usable before model load.
+    final parsed = await _bridge.parseSms(smsBody);
+    if (parsed == null) {
+      throw StateError('Gemma did not return a valid SMS parse.');
     }
-    return parseWithHeuristics(smsBody, fallbackDate: _now());
+    return parsed;
   }
 
-  /// Deterministic fallback used by tests and when native inference is not ready.
+  /// Deterministic parser retained for focused parser tests only.
   static ParsedExpense parseWithHeuristics(
     String smsBody, {
-    DateTime? fallbackDate,
+    required DateTime fallbackDate,
   }) {
     final normalized = smsBody.replaceAll(',', ' ');
     final amount = _extractAmount(normalized);
@@ -84,7 +71,7 @@ final class GemmaExpenseParser {
     return ParsedExpense(
       amount: amount,
       currency: 'INR',
-      date: fallbackDate ?? DateTime.now(),
+      date: fallbackDate,
       payee: payee,
       category: category,
       transactionKind: transactionKind,

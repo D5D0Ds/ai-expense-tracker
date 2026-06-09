@@ -1,5 +1,5 @@
 import 'package:ai_expense_tracker/features/reports/report_chart_data.dart';
-import 'package:ai_expense_tracker/features/reports/reports_controller.dart';
+import 'package:ai_expense_tracker/features/reports/report_trend_data.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -88,6 +88,26 @@ void main() {
       // Act / Assert
       expect(hasPositiveAmount(emptyData), isFalse);
       expect(hasPositiveAmount(positiveData), isTrue);
+    });
+
+    test('maps chart labels to accent values with safe fallbacks', () {
+      // Act / Assert
+      expect(
+        categoryAccentForChartLabel('Food'),
+        ExpenseCategory.food.accentValue,
+      );
+      expect(
+        categoryAccentForChartLabel('Unknown category'),
+        ExpenseCategory.other.accentValue,
+      );
+      expect(
+        paymentMethodAccentForChartLabel('UPI'),
+        PaymentMethodKind.upi.accentValue,
+      );
+      expect(
+        paymentMethodAccentForChartLabel('Unknown method'),
+        PaymentMethodKind.other.accentValue,
+      );
     });
   });
 }

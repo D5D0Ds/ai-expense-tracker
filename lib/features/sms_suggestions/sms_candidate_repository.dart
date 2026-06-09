@@ -1,5 +1,6 @@
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/persistence/app_database.dart';
+import 'package:ai_expense_tracker/shared/persistence/json_box_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provides SMS candidate persistence.
@@ -10,18 +11,20 @@ final smsCandidateRepositoryProvider = Provider<SmsCandidateRepository>((ref) {
 /// Repository that stores SMS candidates awaiting user review.
 final class SmsCandidateRepository {
   /// Creates a repository.
-  SmsCandidateRepository(this._database);
+  SmsCandidateRepository(AppDatabase database)
+    : _store = JsonBoxStore<SmsCandidate>(
+        box: database.smsCandidates,
+        fromJson: SmsCandidate.fromJson,
+        toJson: (candidate) => candidate.toJson(),
+        idOf: (candidate) => candidate.id,
+      );
 
-  final AppDatabase _database;
+  final JsonBoxStore<SmsCandidate> _store;
 
   /// Returns all suggestions ordered newest first.
   Future<List<SmsCandidate>> all() async {
-    final candidates =
-        _database.smsCandidates.values
-            .whereType<Map<dynamic, dynamic>>()
-            .map(SmsCandidate.fromJson)
-            .toList()
-          ..sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
+    final candidates = _store.all()
+      ..sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
     return candidates;
   }
 
@@ -35,9 +38,7 @@ final class SmsCandidateRepository {
 
   /// Finds a suggestion by id.
   Future<SmsCandidate?> byId(String id) async {
-    final value = _database.smsCandidates.get(id);
-    if (value is! Map<dynamic, dynamic>) return null;
-    return SmsCandidate.fromJson(value);
+    return _store.byId(id);
   }
 
   /// Returns whether the SMS hash already exists.
@@ -48,6 +49,6 @@ final class SmsCandidateRepository {
 
   /// Adds or replaces a candidate.
   Future<void> upsert(SmsCandidate candidate) async {
-    await _database.smsCandidates.put(candidate.id, candidate.toJson());
+    await _store.upsert(candidate);
   }
 }

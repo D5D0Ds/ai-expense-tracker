@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.BenchmarkInfo
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -88,23 +89,23 @@ class GemmaEngineHolder(private val context: Context) {
                                 backendName = loadedBackend
                                 loadedEngine
                             } catch (e: Throwable) {
-                                lastError = e.message ?: "Failed to load model for parsing."
-                                null
+                                throw IllegalStateException(
+                                    e.message ?: "Failed to load model for parsing.",
+                                    e,
+                                )
                             }
                         } else null
                     }
 
                     if (activeEngine == null) {
-                        return@withLock parseWithHeuristics(smsBody)
-                            .put("reason", "Native fallback parser used before model load.")
+                        throw IllegalStateException("Gemma model is not loaded.")
                     }
 
                     val parseResult = runCatching {
                         parseWithGemma(activeEngine, smsBody)
                     }.getOrElse { error ->
                         lastError = error.message ?: "Gemma parsing failed."
-                        parseWithHeuristics(smsBody)
-                            .put("reason", "Gemma parse failed. Native fallback parser used.")
+                        throw error
                     }
 
                     // Release engine memory immediately after parsing.
@@ -143,35 +144,22 @@ class GemmaEngineHolder(private val context: Context) {
         val cacheDirectory = File(context.cacheDir, "litertlm").apply {
             mkdirs()
         }
-        val candidates = listOf(
-            "GPU" to Backend.GPU(),
-            "CPU" to Backend.CPU(),
-        )
-        var lastFailure: Throwable? = null
-
-        for ((backendLabel, backend) in candidates) {
-            try {
-                val created = Engine(
-                    EngineConfig(
+        val backend = Backend.GPU()
+        val created = Engine(
+            EngineConfig(
                         modelPath = path,
                         backend = backend,
                         visionBackend = backend,
-                        audioBackend = backend,
-                        maxNumTokens = 768,
+                        audioBackend = Backend.CPU(),
+                        maxNumTokens = 512,
                         maxNumImages = null,
                         cacheDir = cacheDirectory.absolutePath,
                     ),
-                )
-                val startedAt = SystemClock.elapsedRealtime()
-                created.initialize()
-                initTimeMs = SystemClock.elapsedRealtime() - startedAt
-                return created to backendLabel
-            } catch (error: Throwable) {
-                lastFailure = error
-            }
-        }
-
-        throw lastFailure ?: IllegalStateException("Unable to initialize LiteRT-LM.")
+        )
+        val startedAt = SystemClock.elapsedRealtime()
+        created.initialize()
+        initTimeMs = SystemClock.elapsedRealtime() - startedAt
+        return created to "GPU"
     }
 
     @OptIn(ExperimentalApi::class)
@@ -180,8 +168,8 @@ class GemmaEngineHolder(private val context: Context) {
             ConversationConfig(
                 systemInstruction = Contents.of(systemPrompt),
                 samplerConfig = SamplerConfig(
-                    topK = 8,
-                    topP = 0.1,
+                    topK = 1,
+                    topP = 0.0,
                     temperature = 0.0,
                     seed = 7,
                 ),
@@ -192,34 +180,43 @@ class GemmaEngineHolder(private val context: Context) {
             val startedAt = SystemClock.elapsedRealtime()
             val message = conversation.sendMessage(buildUserPrompt(smsBody))
             lastParseTimeMs = SystemClock.elapsedRealtime() - startedAt
-            val benchmark: BenchmarkInfo = conversation.getBenchmarkInfo()
-            lastTimeToFirstTokenSeconds = benchmark.timeToFirstTokenInSecond
-            lastDecodeTokensPerSecond = benchmark.lastDecodeTokensPerSecond
+            runCatching {
+                val benchmark: BenchmarkInfo = conversation.getBenchmarkInfo()
+                lastTimeToFirstTokenSeconds = benchmark.timeToFirstTokenInSecond
+                lastDecodeTokensPerSecond = benchmark.lastDecodeTokensPerSecond
+            }.onFailure {
+                lastTimeToFirstTokenSeconds = null
+                lastDecodeTokensPerSecond = null
+            }
             val rendered = conversation.renderMessageIntoString(message, emptyMap())
             lastError = null
-            return mergeGemmaOutput(rendered, smsBody)
+            return mergeGemmaOutput(
+                listOf(
+                    rendered,
+                    message.contents.toString(),
+                    message.channels.values.joinToString("\n"),
+                ),
+            )
         } finally {
             conversation.close()
         }
     }
 
-    private fun mergeGemmaOutput(modelText: String, smsBody: String): JSONObject {
-        val fallback = parseWithHeuristics(smsBody)
-        val jsonText = extractJson(modelText)
-            ?: return fallback.put("reason", "Gemma did not return strict JSON. Native fallback parser used.")
+    private fun mergeGemmaOutput(modelTexts: List<String>): JSONObject {
+        val jsonText = modelTexts.firstNotNullOfOrNull { extractJson(it) }
+            ?: run {
+                val preview = modelTexts.joinToString(" | ")
+                    .replace(Regex("\\s+"), " ")
+                    .take(180)
+                Log.w(TAG, "Gemma did not return JSON. Output preview: $preview")
+                throw IllegalStateException("Gemma did not return strict JSON.")
+            }
 
         return runCatching {
-            val parsed = JSONObject(jsonText)
-            val merged = JSONObject(fallback.toString())
-            for (key in parsed.keys()) {
-                val value = parsed.opt(key)
-                if (value != null && value != JSONObject.NULL && !(value is String && value.isBlank())) {
-                    merged.put(key, value)
-                }
-            }
-            merged
+            JSONObject(jsonText)
         }.getOrElse {
-            fallback.put("reason", "Gemma returned invalid JSON. Native fallback parser used.")
+            Log.w(TAG, "Gemma returned invalid JSON: ${jsonText.take(180)}", it)
+            throw IllegalStateException("Gemma returned invalid JSON.", it)
         }
     }
 
@@ -457,38 +454,20 @@ class GemmaEngineHolder(private val context: Context) {
             )
         private val systemPrompt =
             """
-            You are an offline SMS parser for an Indian personal finance app.
-            Return only strict JSON, with no markdown fences and no prose.
-            Use this schema exactly:
-            {
-              "amount": number,
-              "currency": "INR",
-              "date": "ISO-8601 string",
-              "payee": "string",
-              "category": "Food|Shopping|Travel|Bills|Health|Entertainment|Transfer|Other",
-              "transactionKind": "Expense|Lent|Borrowed",
-              "paymentMethod": "Credit card|Debit card|Account|UPI|Cash|Other",
-              "confidence": number between 0 and 1,
-              "reason": "short explanation",
-              "isPersonLike": boolean,
-              "accountHint": "string or null",
-              "sourceLabel": "string or null",
-              "fundingSourceLabel": "string or null"
-            }
-            Rules:
-            - Expense is normal merchant or household spend.
-            - Lent is outgoing money to another person.
-            - Borrowed is incoming money from another person or loan source that should be repaid.
-            - For UPI merchant spend, keep paymentMethod as UPI and infer fundingSourceLabel from the linked bank account if possible.
-            - For person-to-person entries, use category Transfer unless a stronger category is explicit.
-            - If a field is unknown, use null instead of inventing data.
+            Non-thinking mode. Do not analyze out loud. Do not write thoughts, explanations, markdown, or prose.
+            Parse Indian bank/UPI SMS and output exactly one minified JSON object.
+            Keys: amount,currency,date,payee,category,transactionKind,paymentMethod,confidence,reason,isPersonLike,accountHint,sourceLabel,fundingSourceLabel.
+            Enums: category Food|Shopping|Travel|Bills|Health|Entertainment|Transfer|Other; transactionKind Expense|Lent|Borrowed; paymentMethod Credit card|Debit card|Account|UPI|Cash|Other.
+            Use INR unless explicit. Use null for unknown optional fields. Keep reason under 8 words. Person transfers use Transfer.
             """.trimIndent()
+
+        private const val TAG = "GemmaEngineHolder"
     }
 
     private fun buildUserPrompt(smsBody: String): String {
         return buildString {
-            appendLine("Parse this SMS into the schema.")
             appendLine("Current time: ${java.time.OffsetDateTime.now()}")
+            appendLine("Return JSON only. Begin with { and end with }.")
             appendLine("SMS:")
             append(smsBody)
         }

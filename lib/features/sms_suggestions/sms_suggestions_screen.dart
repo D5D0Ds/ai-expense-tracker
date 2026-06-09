@@ -6,6 +6,7 @@ import 'package:ai_expense_tracker/shared/platform/permission_gateway.dart';
 import 'package:ai_expense_tracker/shared/theme/app_theme.dart';
 import 'package:ai_expense_tracker/shared/widgets/category_pill.dart';
 import 'package:ai_expense_tracker/shared/widgets/directional_amount.dart';
+import 'package:ai_expense_tracker/shared/widgets/expense_form_controls.dart';
 import 'package:ai_expense_tracker/shared/widgets/glass_panel.dart';
 import 'package:ai_expense_tracker/shared/widgets/payment_method_pill.dart';
 import 'package:ai_expense_tracker/shared/widgets/transaction_kind_pill.dart';
@@ -23,6 +24,7 @@ class SmsSuggestionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final suggestionsAsync = ref.watch(smsSuggestionsControllerProvider);
+    final syncProgress = ref.watch(smsSyncProgressProvider);
     return AppBackdrop(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -57,6 +59,7 @@ class SmsSuggestionsScreen extends ConsumerWidget {
 
                 final now = ref.read(nowProvider)();
                 if (!context.mounted) return;
+                final scaffoldMessenger = ScaffoldMessenger.maybeOf(context);
                 final picked = await showDateRangePicker(
                   context: context,
                   firstDate: DateTime(2020),
@@ -82,19 +85,18 @@ class SmsSuggestionsScreen extends ConsumerWidget {
 
                 if (picked != null) {
                   if (!context.mounted) return;
-                  final scaffoldMessenger = ScaffoldMessenger.of(context);
                   try {
                     await ref
                         .read(smsSuggestionsControllerProvider.notifier)
                         .syncInbox(picked.start, picked.end);
-                    scaffoldMessenger.showSnackBar(
+                    scaffoldMessenger?.showSnackBar(
                       const SnackBar(
                         content: Text('SMS sync completed successfully!'),
                         backgroundColor: AppTheme.turquoise,
                       ),
                     );
                   } on Object catch (e) {
-                    scaffoldMessenger.showSnackBar(
+                    scaffoldMessenger?.showSnackBar(
                       SnackBar(
                         content: Text('Sync failed: $e'),
                         backgroundColor: AppTheme.coral,
@@ -104,19 +106,12 @@ class SmsSuggestionsScreen extends ConsumerWidget {
                 }
               },
             ),
-            IconButton(
-              tooltip: 'Inject test SMS',
-              icon: const Icon(LucideIcons.messageSquare),
-              onPressed: () {
-                ref
-                    .read(smsSuggestionsControllerProvider.notifier)
-                    .injectDemoSms();
-              },
-            ),
           ],
         ),
         body: suggestionsAsync.when(
-          loading: () => const Center(child: ShadProgress()),
+          loading: () => Center(
+            child: _SmsSyncProgressIndicator(progress: syncProgress),
+          ),
           error: (error, stackTrace) => Center(child: Text(error.toString())),
           data: (suggestions) {
             if (suggestions.isEmpty) {
@@ -143,6 +138,59 @@ class SmsSuggestionsScreen extends ConsumerWidget {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+final class _SmsSyncProgressIndicator extends StatelessWidget {
+  const _SmsSyncProgressIndicator({required this.progress});
+
+  final SmsSyncProgress? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = this.progress;
+    final label = progress == null
+        ? 'Preparing SMS sync'
+        : 'Processed ${progress.processed} / ${progress.total} messages';
+    final detail = progress == null
+        ? 'Reading inbox'
+        : 'Added ${progress.added} suggestions • Skipped ${progress.skipped} • Failed ${progress.failed}';
+    final value = progress == null || progress.total == 0
+        ? null
+        : progress.processed / progress.total;
+
+    return Semantics(
+      label: label,
+      child: SizedBox(
+        width: 260,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShadProgress(value: value),
+            const SizedBox(height: 14),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -327,23 +375,14 @@ class _EditSuggestionSheetState extends ConsumerState<_EditSuggestionSheet> {
                 style: TextStyle(color: AppTheme.textMuted, height: 1.35),
               ),
               const SizedBox(height: 18),
-              const _SectionLabel('Type'),
+              const FormSectionLabel('Type'),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final kind in TransactionKind.values)
-                    _ToggleChip(
-                      label: kind.label,
-                      selected: _transactionKind == kind,
-                      color: Color(kind.accentValue),
-                      onTap: () => setState(() => _transactionKind = kind),
-                    ),
-                ],
+              TransactionKindSelector(
+                value: _transactionKind,
+                onChanged: (kind) => setState(() => _transactionKind = kind),
               ),
               const SizedBox(height: 18),
-              const _SectionLabel('Amount'),
+              const FormSectionLabel('Amount'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _amountController,
@@ -355,61 +394,39 @@ class _EditSuggestionSheetState extends ConsumerState<_EditSuggestionSheet> {
                 ],
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Payee'),
+              const FormSectionLabel('Payee'),
               const SizedBox(height: 8),
               ShadInput(controller: _payeeController),
               const SizedBox(height: 14),
-              const _SectionLabel('Category'),
+              const FormSectionLabel('Category'),
               const SizedBox(height: 8),
-              ShadSelect<ExpenseCategory>(
-                initialValue: _category,
-                options: ExpenseCategory.values
-                    .map(
-                      (category) => ShadOption(
-                        value: category,
-                        child: Text(category.label),
-                      ),
-                    )
-                    .toList(),
-                selectedOptionBuilder: (context, value) => Text(value.label),
-                onChanged: (value) {
-                  if (value != null) setState(() => _category = value);
-                },
+              ExpenseCategorySelect(
+                value: _category,
+                onChanged: (category) => setState(() => _category = category),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Payment method'),
+              const FormSectionLabel('Payment method'),
               const SizedBox(height: 8),
-              ShadSelect<PaymentMethodKind>(
-                initialValue: _paymentMethod,
-                options: PaymentMethodKind.values
-                    .map(
-                      (method) => ShadOption(
-                        value: method,
-                        child: Text(method.label),
-                      ),
-                    )
-                    .toList(),
-                selectedOptionBuilder: (context, value) => Text(value.label),
-                onChanged: (value) {
-                  if (value != null) setState(() => _paymentMethod = value);
-                },
+              PaymentMethodSelect(
+                value: _paymentMethod,
+                onChanged: (method) => setState(() => _paymentMethod = method),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Source label'),
+              const FormSectionLabel('Source label'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _sourceLabelController,
                 placeholder: const Text('Optional'),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Funding account'),
+              const FormSectionLabel('Funding account'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _fundingSourceController,
                 placeholder: const Text('Optional'),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Masked account hint'),
+              const FormSectionLabel('Masked account hint'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _accountHintController,
@@ -469,71 +486,6 @@ class _ConfidencePill extends StatelessWidget {
       child: Text(
         '${(confidence * 100).round()}%',
         style: TextStyle(color: color, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppTheme.textMuted,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _ToggleChip extends StatelessWidget {
-  const _ToggleChip({
-    required this.label,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.16)
-                : Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected
-                  ? color.withValues(alpha: 0.45)
-                  : Colors.white.withValues(alpha: 0.06),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? color : AppTheme.textMuted,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
       ),
     );
   }

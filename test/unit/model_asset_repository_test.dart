@@ -17,6 +17,65 @@ void main() {
       expect(state, isNull);
     });
 
+    test('returns null when cached state is not a map', () {
+      // Arrange
+      final settings = FakeBox();
+      final database = FakeAppDatabase(settings: settings);
+      settings.seed('modelState', 'not-a-map');
+      final repository = ModelAssetRepository(database);
+
+      // Act
+      final state = repository.loadState();
+
+      // Assert
+      expect(state, isNull);
+    });
+
+    test('returns null when cached state has an unknown phase', () {
+      // Arrange
+      final settings = FakeBox();
+      final database = FakeAppDatabase(settings: settings);
+      settings.seed('modelState', {'phase': 'unknown'});
+      final repository = ModelAssetRepository(database);
+
+      // Act
+      final state = repository.loadState();
+
+      // Assert
+      expect(state, isNull);
+    });
+
+    test('returns null when cached state has a non-string phase', () {
+      // Arrange
+      final settings = FakeBox();
+      final database = FakeAppDatabase(settings: settings);
+      settings.seed('modelState', {'phase': 1});
+      final repository = ModelAssetRepository(database);
+
+      // Act
+      final state = repository.loadState();
+
+      // Assert
+      expect(state, isNull);
+    });
+
+    test('returns null when cached state has malformed numeric fields', () {
+      // Arrange
+      final settings = FakeBox();
+      final database = FakeAppDatabase(settings: settings);
+      settings.seed('modelState', {
+        'phase': 'downloading',
+        'receivedBytes': 'not-a-number',
+      });
+      final repository = ModelAssetRepository(database);
+
+      // Act
+      final state = repository.loadState();
+
+      // Assert
+      expect(state, isNull);
+    });
+
     test('saves and loads model state', () async {
       // Arrange
       final repository = ModelAssetRepository(FakeAppDatabase());

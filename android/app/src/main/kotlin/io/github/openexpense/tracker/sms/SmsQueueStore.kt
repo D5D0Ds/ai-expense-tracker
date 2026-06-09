@@ -34,13 +34,40 @@ class SmsQueueStore(context: Context) {
         }
     }
 
-    private fun looksFinancial(body: String): Boolean {
+    fun looksFinancial(body: String): Boolean {
         val lower = body.lowercase()
-        return listOf("debited", "spent", "paid", "upi", "credited", "received", "deposit", "refund", "rs.", "inr", "₹").any { lower.contains(it) } &&
-            !lower.contains("otp")
+        if (nonTransactionPatterns.any { it.containsMatchIn(lower) }) return false
+        return transactionPatterns.any { it.containsMatchIn(lower) }
     }
 
     private companion object {
         const val KEY = "pending_sms"
+        val nonTransactionPatterns = listOf(
+            Regex("\\botp\\b"),
+            Regex("one[- ]time password"),
+            Regex("secret otp"),
+            Regex("verification code"),
+            Regex("do not share"),
+            Regex("statement"),
+            Regex("total amt due"),
+            Regex("minimum due"),
+            Regex("min amt due"),
+            Regex("bill .* due"),
+            Regex("due by"),
+            Regex("eligible"),
+            Regex("convert .* emi"),
+            Regex("flexipay"),
+            Regex("maintenance"),
+            Regex("reward points"),
+            Regex("cashback"),
+            Regex("neucoin"),
+            Regex("missed call"),
+            Regex("transaction reversed"),
+            Regex("\\brefund\\b"),
+        )
+        val transactionPatterns = listOf(
+            Regex("\\b(sent|spent|paid|debited|withdrawn|received)\\b[\\s\\S]{0,80}\\b(rs\\.?|inr|₹)"),
+            Regex("\\b(rs\\.?|inr|₹)\\s*[0-9][0-9,.]*[\\s\\S]{0,80}\\b(sent|spent|paid|debited|withdrawn|received)\\b"),
+        )
     }
 }

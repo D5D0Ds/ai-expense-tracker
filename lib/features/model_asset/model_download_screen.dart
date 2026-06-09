@@ -1,5 +1,5 @@
+import 'package:ai_expense_tracker/features/model_asset/model_asset_config.dart';
 import 'package:ai_expense_tracker/features/model_asset/model_asset_controller.dart';
-import 'package:ai_expense_tracker/features/model_asset/model_asset_service.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/formatters.dart';
 import 'package:ai_expense_tracker/shared/theme/app_theme.dart';

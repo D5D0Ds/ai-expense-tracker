@@ -2,25 +2,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:ai_expense_tracker/features/model_asset/model_asset_config.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-
-/// Hard-coded Gemma model filename.
-const gemmaModelFilename = 'gemma-4-E2B-it.litertlm';
-
-/// Public model URL used for cloneable open-source builds.
-const gemmaModelUrl =
-    'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm';
-
-/// Expected model size from the accepted implementation plan.
-const gemmaExpectedBytes = 2590000000;
-
-/// Accepted byte-size tolerance.
-const gemmaSizeToleranceBytes = 5000000;
 
 /// Provides model file storage operations.
 final modelAssetStorageProvider = Provider<ModelAssetStorage>((ref) {
@@ -195,11 +183,6 @@ final class ModelAssetService {
   void cancel() {
     _cancelToken?.cancel('User cancelled download');
   }
-
-  /// Validates a byte size using the accepted tolerance.
-  static bool isValidModelSize(int size) {
-    return (size - gemmaExpectedBytes).abs() <= gemmaSizeToleranceBytes;
-  }
 }
 
 /// Inspects a model file path.
@@ -207,7 +190,7 @@ ModelAssetState inspectModelFile(String path) {
   final file = File(path);
   if (!file.existsSync()) return const ModelAssetState.absent();
   final size = file.lengthSync();
-  if (!ModelAssetService.isValidModelSize(size)) {
+  if (!isValidGemmaModelSize(size)) {
     return ModelAssetState(
       phase: ModelAssetPhase.failed,
       path: path,

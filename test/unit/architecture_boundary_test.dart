@@ -56,5 +56,19 @@ void main() {
       expect(source, isNot(contains('permission_handler')));
       expect(source, contains('permission_gateway.dart'));
     });
+
+    test(
+      'SMS controller uses platform gateway provider, not bridge concrete',
+      () {
+        // Arrange
+        final source = File(
+          'lib/features/sms_suggestions/sms_suggestions_controller.dart',
+        ).readAsStringSync();
+
+        // Assert
+        expect(source, contains('smsGatewayProvider'));
+        expect(source, isNot(contains('NativeSmsBridge')));
+      },
+    );
   });
 }

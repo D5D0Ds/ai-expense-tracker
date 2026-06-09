@@ -19,11 +19,15 @@ final class BudgetRepository {
   Map<String, double> loadAll() {
     final cached = _database.settings.get(_key);
     if (cached is! Map) return {};
-    return Map<String, double>.from(
-      cached.map((key, value) {
-        return MapEntry(key.toString(), (value as num).toDouble());
-      }),
-    );
+
+    final budgets = <String, double>{};
+    for (final entry in cached.entries) {
+      final value = entry.value;
+      if (value is num) {
+        budgets[entry.key.toString()] = value.toDouble();
+      }
+    }
+    return budgets;
   }
 
   /// Saves all month-keyed budgets.

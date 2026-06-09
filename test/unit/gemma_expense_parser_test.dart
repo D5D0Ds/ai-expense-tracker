@@ -22,8 +22,10 @@ void main() {
     });
 
     test('suggests lent when payee looks like a person', () {
+      final fallbackDate = DateTime(2026, 6, 1, 12);
       final parsed = GemmaExpenseParser.parseWithHeuristics(
         'SBI: INR 1200 paid to Rahul Sharma via UPI ref 121212.',
+        fallbackDate: fallbackDate,
       );
 
       expect(parsed.transactionKind, TransactionKind.lent);
@@ -32,8 +34,10 @@ void main() {
     });
 
     test('suggests borrowed when an incoming person transfer is detected', () {
+      final fallbackDate = DateTime(2026, 6, 1, 12);
       final parsed = GemmaExpenseParser.parseWithHeuristics(
         'Kotak Bank: INR 2500 received from Ananya Singh via UPI to A/c XX1044.',
+        fallbackDate: fallbackDate,
       );
 
       expect(parsed.transactionKind, TransactionKind.borrowed);

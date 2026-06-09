@@ -7,16 +7,66 @@ import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/platform/native_sms_bridge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Provides access to native SMS operations.
-final smsGatewayProvider = Provider<SmsGateway>((ref) {
-  return const NativeSmsBridge();
-});
-
 /// Provides SMS suggestion state.
 final smsSuggestionsControllerProvider =
     AsyncNotifierProvider<SmsSuggestionsController, List<SmsCandidate>>(
       SmsSuggestionsController.new,
     );
+
+/// Current manual SMS inbox sync progress, when a sync is active.
+final smsSyncProgressProvider =
+    NotifierProvider<SmsSyncProgressController, SmsSyncProgress?>(
+      SmsSyncProgressController.new,
+    );
+
+/// Count of messages processed during a manual SMS inbox sync.
+final class SmsSyncProgress {
+  /// Creates sync progress.
+  const SmsSyncProgress({
+    required this.processed,
+    required this.total,
+    required this.added,
+    required this.skipped,
+    required this.failed,
+  });
+
+  /// Number of inbox messages already processed.
+  final int processed;
+
+  /// Total inbox messages selected for parsing.
+  final int total;
+
+  /// Number of pending suggestions created.
+  final int added;
+
+  /// Number of messages ignored because they were duplicate or not expenses.
+  final int skipped;
+
+  /// Number of messages that Gemma failed to parse.
+  final int failed;
+
+  /// Creates an initial progress value.
+  factory SmsSyncProgress.initial({required int total}) {
+    return SmsSyncProgress(
+      processed: 0,
+      total: total,
+      added: 0,
+      skipped: 0,
+      failed: 0,
+    );
+  }
+}
+
+/// Stores manual SMS inbox sync progress.
+final class SmsSyncProgressController extends Notifier<SmsSyncProgress?> {
+  @override
+  SmsSyncProgress? build() => null;
+
+  /// Publishes the current sync progress.
+  void update(SmsSyncProgress? progress) {
+    state = progress;
+  }
+}
 
 /// Controls parsing, confirmation, editing, and ignoring SMS suggestions.
 final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
@@ -36,13 +86,7 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
   /// Drains native SMS queue and parses unseen messages.
   Future<void> drainNativeQueue() async {
     final messages = await ref.read(smsGatewayProvider).drainPending();
-    for (final message in messages) {
-      await parseAndQueue(
-        sender: message.sender,
-        body: message.body,
-        receivedAt: message.receivedAt,
-      );
-    }
+    await _parseAndQueueAll(messages);
   }
 
   /// Parses and queues a raw SMS body.
@@ -51,12 +95,26 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
     required String body,
     required DateTime receivedAt,
   }) async {
+    await _parseAndQueue(
+      sender: sender,
+      body: body,
+      receivedAt: receivedAt,
+      refreshAfterUpsert: true,
+    );
+  }
+
+  Future<_SmsQueueResult> _parseAndQueue({
+    required String sender,
+    required String body,
+    required DateTime receivedAt,
+    required bool refreshAfterUpsert,
+  }) async {
     final hash = smsBodyHash(body);
     final repository = ref.read(smsCandidateRepositoryProvider);
-    if (await repository.containsHash(hash)) return;
+    if (await repository.containsHash(hash)) return _SmsQueueResult.skipped;
 
     final parsed = await ref.read(gemmaExpenseParserProvider).parse(body);
-    if (parsed.amount <= 0) return;
+    if (parsed.amount <= 0) return _SmsQueueResult.skipped;
     final candidate = buildPendingSmsCandidate(
       id: ref.read(idGeneratorProvider)(),
       sender: sender,
@@ -66,7 +124,10 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
       createdAt: ref.read(nowProvider)(),
     );
     await repository.upsert(candidate);
-    await reload();
+    if (refreshAfterUpsert) {
+      await reload();
+    }
+    return _SmsQueueResult.added;
   }
 
   /// Inserts a realistic fake SMS for local testing.
@@ -121,24 +182,88 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
 
   /// Syncs phone SMS inbox within a given date range.
   Future<void> syncInbox(DateTime start, DateTime end) async {
+    final progress = ref.read(smsSyncProgressProvider.notifier);
     state = const AsyncValue.loading();
+    progress.update(SmsSyncProgress.initial(total: 0));
     try {
-      final messages = await ref
-          .read(smsGatewayProvider)
-          .queryInbox(
-            start,
-            end,
-          );
-      for (final message in messages) {
-        await parseAndQueue(
+      state = await AsyncValue.guard(() async {
+        final messages = await ref
+            .read(smsGatewayProvider)
+            .queryInbox(
+              start,
+              end,
+            );
+        progress.update(SmsSyncProgress.initial(total: messages.length));
+        await _parseAndQueueAll(
+          messages,
+          refreshAfterEachUpsert: false,
+          continueOnParseError: true,
+          onProgress: (summary) {
+            progress.update(
+              SmsSyncProgress(
+                processed: summary.processed,
+                total: messages.length,
+                added: summary.added,
+                skipped: summary.skipped,
+                failed: summary.failed,
+              ),
+            );
+          },
+        );
+        return ref.read(smsCandidateRepositoryProvider).pending();
+      });
+    } finally {
+      progress.update(null);
+    }
+  }
+
+  Future<void> _parseAndQueueAll(
+    List<NativeSmsMessage> messages, {
+    bool refreshAfterEachUpsert = true,
+    bool continueOnParseError = false,
+    void Function(_SmsSyncSummary summary)? onProgress,
+  }) async {
+    var summary = const _SmsSyncSummary();
+    for (final message in messages) {
+      try {
+        final result = await _parseAndQueue(
           sender: message.sender,
           body: message.body,
           receivedAt: message.receivedAt,
+          refreshAfterUpsert: refreshAfterEachUpsert,
         );
+        summary = summary.after(result);
+      } on Object {
+        if (!continueOnParseError) rethrow;
+        summary = summary.after(_SmsQueueResult.failed);
+      } finally {
+        onProgress?.call(summary);
       }
-      await reload();
-    } on Object catch (e, stack) {
-      state = AsyncValue.error(e, stack);
     }
+  }
+}
+
+enum _SmsQueueResult { added, skipped, failed }
+
+final class _SmsSyncSummary {
+  const _SmsSyncSummary({
+    this.processed = 0,
+    this.added = 0,
+    this.skipped = 0,
+    this.failed = 0,
+  });
+
+  final int processed;
+  final int added;
+  final int skipped;
+  final int failed;
+
+  _SmsSyncSummary after(_SmsQueueResult result) {
+    return _SmsSyncSummary(
+      processed: processed + 1,
+      added: added + (result == _SmsQueueResult.added ? 1 : 0),
+      skipped: skipped + (result == _SmsQueueResult.skipped ? 1 : 0),
+      failed: failed + (result == _SmsQueueResult.failed ? 1 : 0),
+    );
   }
 }

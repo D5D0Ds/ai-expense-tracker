@@ -2,6 +2,7 @@ import 'package:ai_expense_tracker/features/expenses/expense_controller.dart';
 import 'package:ai_expense_tracker/features/expenses/expense_form_sheet.dart';
 import 'package:ai_expense_tracker/features/expenses/expense_list_summary.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
+import 'package:ai_expense_tracker/shared/core/filter_options.dart';
 import 'package:ai_expense_tracker/shared/core/formatters.dart';
 import 'package:ai_expense_tracker/shared/theme/app_theme.dart';
 import 'package:ai_expense_tracker/shared/widgets/category_pill.dart';
@@ -175,23 +176,20 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                                   spacing: 8,
                                   runSpacing: 8,
                                   children: [
-                                    _FilterChip(
-                                      label: 'All',
-                                      selected: _transactionKind == null,
-                                      onTap: () => setState(
-                                        () => _transactionKind = null,
-                                      ),
-                                    ),
-                                    for (final kind in TransactionKind.values)
+                                    for (final kind
+                                        in buildNullableFilterOptions(
+                                          selected: _transactionKind,
+                                          values: TransactionKind.values,
+                                          labelFor: (kind) => kind.label,
+                                          accentFor: (kind) => kind.accentValue,
+                                        ))
                                       _FilterChip(
                                         label: kind.label,
-                                        selected: _transactionKind == kind,
-                                        color: Color(kind.accentValue),
+                                        selected: kind.selected,
+                                        color: _filterColor(kind),
                                         onTap: () => setState(
-                                          () => _transactionKind =
-                                              _transactionKind == kind
-                                              ? null
-                                              : kind,
+                                          () =>
+                                              _transactionKind = kind.nextValue,
                                         ),
                                       ),
                                   ],
@@ -204,23 +202,21 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                                   spacing: 8,
                                   runSpacing: 8,
                                   children: [
-                                    _FilterChip(
-                                      label: 'All',
-                                      selected: _category == null,
-                                      onTap: () =>
-                                          setState(() => _category = null),
-                                    ),
                                     for (final category
-                                        in ExpenseCategory.values)
+                                        in buildNullableFilterOptions(
+                                          selected: _category,
+                                          values: ExpenseCategory.values,
+                                          labelFor: (category) =>
+                                              category.label,
+                                          accentFor: (category) =>
+                                              category.accentValue,
+                                        ))
                                       _FilterChip(
                                         label: category.label,
-                                        selected: _category == category,
-                                        color: Color(category.accentValue),
+                                        selected: category.selected,
+                                        color: _filterColor(category),
                                         onTap: () => setState(
-                                          () =>
-                                              _category = _category == category
-                                              ? null
-                                              : category,
+                                          () => _category = category.nextValue,
                                         ),
                                       ),
                                   ],
@@ -233,23 +229,21 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                                   spacing: 8,
                                   runSpacing: 8,
                                   children: [
-                                    _FilterChip(
-                                      label: 'All',
-                                      selected: _paymentMethod == null,
-                                      onTap: () =>
-                                          setState(() => _paymentMethod = null),
-                                    ),
                                     for (final method
-                                        in PaymentMethodKind.values)
+                                        in buildNullableFilterOptions(
+                                          selected: _paymentMethod,
+                                          values: PaymentMethodKind.values,
+                                          labelFor: (method) => method.label,
+                                          accentFor: (method) =>
+                                              method.accentValue,
+                                        ))
                                       _FilterChip(
                                         label: method.label,
-                                        selected: _paymentMethod == method,
-                                        color: Color(method.accentValue),
+                                        selected: method.selected,
+                                        color: _filterColor(method),
                                         onTap: () => setState(
-                                          () => _paymentMethod =
-                                              _paymentMethod == method
-                                              ? null
-                                              : method,
+                                          () =>
+                                              _paymentMethod = method.nextValue,
                                         ),
                                       ),
                                   ],
@@ -336,6 +330,11 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       builder: (_) => const ExpenseFormSheet(),
     );
   }
+}
+
+Color? _filterColor<T>(SelectableFilterOption<T> option) {
+  final accentValue = option.accentValue;
+  return accentValue == null ? null : Color(accentValue);
 }
 
 class _ExpenseTile extends StatelessWidget {

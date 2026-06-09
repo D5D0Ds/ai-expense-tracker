@@ -3,6 +3,7 @@ import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/core/text_normalization.dart';
 import 'package:ai_expense_tracker/shared/persistence/app_database.dart';
+import 'package:ai_expense_tracker/shared/persistence/json_box_store.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provides the expense repository.
@@ -29,31 +30,30 @@ final class ExpenseRepository
        );
 
   ExpenseRepository._(
-    this._database,
+    AppDatabase database,
     this._now,
     this._generateId,
-  );
+  ) : _store = JsonBoxStore<Expense>(
+        box: database.expenses,
+        fromJson: Expense.fromJson,
+        toJson: (expense) => expense.toJson(),
+        idOf: (expense) => expense.id,
+      );
 
-  final AppDatabase _database;
+  final JsonBoxStore<Expense> _store;
   final DateTime Function() _now;
   final String Function() _generateId;
 
   /// Returns all confirmed expenses ordered newest first.
   Future<List<Expense>> all() async {
-    final expenses =
-        _database.expenses.values
-            .whereType<Map<dynamic, dynamic>>()
-            .map(Expense.fromJson)
-            .toList()
-          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final expenses = _store.all()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     return expenses;
   }
 
   /// Finds an expense by id.
   Future<Expense?> byId(String id) async {
-    final value = _database.expenses.get(id);
-    if (value is! Map<dynamic, dynamic>) return null;
-    return Expense.fromJson(value);
+    return _store.byId(id);
   }
 
   /// Adds a manually entered expense.
@@ -93,12 +93,12 @@ final class ExpenseRepository
 
   /// Adds or replaces an expense.
   Future<void> upsert(Expense expense) async {
-    await _database.expenses.put(expense.id, expense.toJson());
+    await _store.upsert(expense);
   }
 
   /// Deletes an expense.
   Future<void> delete(String id) async {
-    await _database.expenses.delete(id);
+    await _store.delete(id);
   }
 
   /// Marks expenses as exported.

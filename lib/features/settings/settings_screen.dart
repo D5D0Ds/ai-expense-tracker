@@ -1,5 +1,6 @@
 import 'package:ai_expense_tracker/features/model_asset/model_asset_controller.dart';
 import 'package:ai_expense_tracker/features/settings/budget_controller.dart';
+import 'package:ai_expense_tracker/features/settings/budget_input.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/platform/gemma_bridge.dart';
@@ -206,16 +207,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(width: 12),
                   ShadButton(
                     onPressed: () async {
-                      final val = double.tryParse(_budgetController.text);
-                      if (val != null && val >= 0) {
+                      final val = parseBudgetAmount(_budgetController.text);
+                      if (val != null) {
                         final messenger = ScaffoldMessenger.of(context);
                         final now = ref.read(nowProvider)();
-                        final monthKey = ref
-                            .read(budgetControllerProvider.notifier)
-                            .getMonthKey(now);
                         await ref
                             .read(budgetControllerProvider.notifier)
-                            .setBudget(monthKey, val);
+                            .setBudgetForMonth(now, val);
                         messenger.showSnackBar(
                           const SnackBar(
                             content: Text(

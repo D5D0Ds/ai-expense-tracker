@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ai_expense_tracker/features/model_asset/model_asset_repository.dart';
 import 'package:ai_expense_tracker/features/model_asset/model_asset_service.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
@@ -15,6 +17,10 @@ final class ModelAssetController extends AsyncNotifier<ModelAssetState> {
   @override
   Future<ModelAssetState> build() async {
     final cached = ref.watch(modelAssetRepositoryProvider).loadState();
+    if (cached?.isReady == true && cached?.path != null) {
+      unawaited(_verifyCachedReadyModel(cached!));
+      return cached;
+    }
     if (cached != null) state = AsyncData(cached);
     return check();
   }
@@ -59,5 +65,24 @@ final class ModelAssetController extends AsyncNotifier<ModelAssetState> {
 
   Future<void> _persist(ModelAssetState next) async {
     await ref.read(modelAssetRepositoryProvider).saveState(next);
+  }
+
+  Future<void> _verifyCachedReadyModel(ModelAssetState cached) async {
+    try {
+      await ref.read(gemmaGatewayProvider).loadModel(cached.path!);
+      final verified = await ref.read(modelAssetServiceProvider).check();
+      await _persist(verified);
+      state = AsyncData(verified);
+    } on Object catch (error) {
+      final failed = ModelAssetState(
+        phase: ModelAssetPhase.failed,
+        path: cached.path,
+        receivedBytes: cached.receivedBytes,
+        totalBytes: cached.totalBytes,
+        message: 'Model failed to initialize: $error',
+      );
+      await _persist(failed);
+      state = AsyncData(failed);
+    }
   }
 }

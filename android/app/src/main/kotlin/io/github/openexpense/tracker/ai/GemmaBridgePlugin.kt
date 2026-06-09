@@ -1,6 +1,7 @@
 package io.github.openexpense.tracker.ai
 
 import android.content.Context
+import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -67,6 +68,8 @@ class GemmaBridgePlugin private constructor(
 
     private fun querySmsInbox(startTimestamp: Long, endTimestamp: Long): List<Map<String, Any>> {
         val list = mutableListOf<Map<String, Any>>()
+        val store = SmsQueueStore(context.applicationContext)
+        var scanned = 0
         val cursor = context.contentResolver.query(
             android.net.Uri.parse("content://sms/inbox"),
             arrayOf("address", "body", "date"),
@@ -81,8 +84,10 @@ class GemmaBridgePlugin private constructor(
             
             if (addressIdx != -1 && bodyIdx != -1 && dateIdx != -1) {
                 while (c.moveToNext()) {
+                    scanned += 1
                     val sender = c.getString(addressIdx).orEmpty()
                     val body = c.getString(bodyIdx).orEmpty()
+                    if (!store.looksFinancial(body)) continue
                     val date = c.getLong(dateIdx)
                     list.add(mapOf(
                         "sender" to sender,
@@ -92,10 +97,13 @@ class GemmaBridgePlugin private constructor(
                 }
             }
         }
+        Log.i(TAG, "querySmsInbox scanned=$scanned accepted=${list.size}")
         return list
     }
 
     companion object {
+        private const val TAG = "GemmaBridgePlugin"
+
         fun register(context: Context, messenger: BinaryMessenger) {
             GemmaBridgePlugin(context, messenger)
         }

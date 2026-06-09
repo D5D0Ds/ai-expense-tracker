@@ -3,6 +3,7 @@ import 'package:ai_expense_tracker/features/expenses/manual_expense_input.dart';
 import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:ai_expense_tracker/shared/core/runtime_dependencies.dart';
 import 'package:ai_expense_tracker/shared/theme/app_theme.dart';
+import 'package:ai_expense_tracker/shared/widgets/expense_form_controls.dart';
 import 'package:ai_expense_tracker/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,23 +76,14 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 style: TextStyle(color: AppTheme.textMuted, height: 1.35),
               ),
               const SizedBox(height: 18),
-              const _SectionLabel('Type'),
+              const FormSectionLabel('Type'),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final kind in TransactionKind.values)
-                    _ToggleChip(
-                      label: kind.label,
-                      selected: _transactionKind == kind,
-                      color: Color(kind.accentValue),
-                      onTap: () => setState(() => _transactionKind = kind),
-                    ),
-                ],
+              TransactionKindSelector(
+                value: _transactionKind,
+                onChanged: (kind) => setState(() => _transactionKind = kind),
               ),
               const SizedBox(height: 18),
-              const _SectionLabel('Amount'),
+              const FormSectionLabel('Amount'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _amountController,
@@ -104,54 +96,32 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 ],
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Payee or person'),
+              const FormSectionLabel('Payee or person'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _payeeController,
                 placeholder: Text(
                   _transactionKind == TransactionKind.expense
-                      ? 'Swiggy'
-                      : 'Rahul Sharma',
+                      ? 'e.g., Merchant'
+                      : 'e.g., Payee',
                 ),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Category'),
+              const FormSectionLabel('Category'),
               const SizedBox(height: 8),
-              ShadSelect<ExpenseCategory>(
-                initialValue: _category,
-                options: ExpenseCategory.values
-                    .map(
-                      (category) => ShadOption(
-                        value: category,
-                        child: Text(category.label),
-                      ),
-                    )
-                    .toList(),
-                selectedOptionBuilder: (context, value) => Text(value.label),
-                onChanged: (value) {
-                  if (value != null) setState(() => _category = value);
-                },
+              ExpenseCategorySelect(
+                value: _category,
+                onChanged: (category) => setState(() => _category = category),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Payment method'),
+              const FormSectionLabel('Payment method'),
               const SizedBox(height: 8),
-              ShadSelect<PaymentMethodKind>(
-                initialValue: _paymentMethod,
-                options: PaymentMethodKind.values
-                    .map(
-                      (method) => ShadOption(
-                        value: method,
-                        child: Text(method.label),
-                      ),
-                    )
-                    .toList(),
-                selectedOptionBuilder: (context, value) => Text(value.label),
-                onChanged: (value) {
-                  if (value != null) setState(() => _paymentMethod = value);
-                },
+              PaymentMethodSelect(
+                value: _paymentMethod,
+                onChanged: (method) => setState(() => _paymentMethod = method),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Source label'),
+              const FormSectionLabel('Source label'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _sourceLabelController,
@@ -167,21 +137,21 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Funding account'),
+              const FormSectionLabel('Funding account'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _fundingSourceController,
                 placeholder: const Text('Optional linked account'),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Masked account hint'),
+              const FormSectionLabel('Masked account hint'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _accountHintController,
                 placeholder: const Text('A/c XX2182'),
               ),
               const SizedBox(height: 14),
-              const _SectionLabel('Notes'),
+              const FormSectionLabel('Notes'),
               const SizedBox(height: 8),
               ShadInput(
                 controller: _notesController,
@@ -232,70 +202,5 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
           fundingSourceLabel: input.fundingSourceLabel,
         );
     if (mounted) Navigator.of(context).pop();
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppTheme.textMuted,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _ToggleChip extends StatelessWidget {
-  const _ToggleChip({
-    required this.label,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected
-                  ? color.withValues(alpha: 0.55)
-                  : Colors.white.withValues(alpha: 0.06),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? color : AppTheme.textMuted,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
