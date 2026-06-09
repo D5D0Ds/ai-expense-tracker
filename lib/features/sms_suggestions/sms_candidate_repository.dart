@@ -45,13 +45,18 @@ final class SmsCandidateRepository {
 
   /// Returns whether a pending (unreviewed) candidate with this hash exists.
   /// Ignored or confirmed candidates are not counted so they can re-appear.
+  ///
+  /// Scans the box directly without sorting to avoid O(n log n) overhead
+  /// during inbox sync where this is called for every SMS.
   Future<bool> containsPendingHash(String bodyHash) async {
-    final candidates = await all();
-    return candidates.any(
-      (candidate) =>
-          candidate.bodyHash == bodyHash &&
-          candidate.status == SmsCandidateStatus.pending,
-    );
+    for (final entry in _store.rawValues) {
+      if (entry is! Map<dynamic, dynamic>) continue;
+      if (entry['bodyHash'] == bodyHash &&
+          entry['status'] == SmsCandidateStatus.pending.name) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Adds or replaces a candidate.

@@ -5,6 +5,7 @@ import 'package:ai_expense_tracker/shared/core/domain_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'expense_ports.dart';
+export 'expense_repository.dart' show expenseRepositoryProvider;
 
 /// Read-only access to confirmed expenses for other features.
 final confirmedExpensesProvider = Provider<AsyncValue<List<Expense>>>((ref) {
@@ -24,9 +25,4 @@ final parsedExpenseConfirmerProvider = Provider<ParsedExpenseConfirmer>((ref) {
 /// Provides report export marking for features outside expenses.
 final expenseExportMarkerProvider = Provider<ExpenseExportMarker>((ref) {
   return ref.watch(expenseRepositoryProvider);
-});
-
-/// Returns whether an expense linked to the given SMS hash already exists.
-final expenseHashCheckerProvider = Provider<Future<bool> Function(String)>((ref) {
-  return ref.read(expenseRepositoryProvider).hasRawSmsHash;
 });

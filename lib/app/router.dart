@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
+    errorBuilder: (context, state) => const DashboardScreen(),
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

@@ -60,9 +60,15 @@ final class ExpenseRepository
   Future<Expense?> byId(String id) async => _store.byId(id);
 
   /// Returns whether an expense linked to the given SMS hash already exists.
+  ///
+  /// Scans the box directly without sorting to avoid O(n log n) overhead
+  /// during inbox sync where this is called for every SMS.
   Future<bool> hasRawSmsHash(String rawSmsHash) async {
-    final expenses = await all();
-    return expenses.any((expense) => expense.rawSmsHash == rawSmsHash);
+    for (final entry in _store.rawValues) {
+      if (entry is! Map<dynamic, dynamic>) continue;
+      if (entry['rawSmsHash'] == rawSmsHash) return true;
+    }
+    return false;
   }
 
   /// Adds a manually entered expense.

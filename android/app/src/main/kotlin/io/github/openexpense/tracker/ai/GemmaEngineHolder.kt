@@ -29,6 +29,7 @@ class GemmaEngineHolder(private val context: Context) {
     private val mutex = Mutex()
 
     private var engine: Engine? = null
+    private var closeJob: kotlinx.coroutines.Job? = null
     @Volatile private var modelPath: String? = null
     @Volatile private var backendName: String? = null
     @Volatile private var initTimeMs: Long? = null
@@ -79,7 +80,10 @@ class GemmaEngineHolder(private val context: Context) {
         scope.launch {
             try {
                 val parsed = mutex.withLock {
-                    // Load engine on-demand so it is only resident while parsing.
+                    // Cancel any scheduled engine close so the engine stays warm.
+                    closeJob?.cancel()
+                    closeJob = null
+
                     val activeEngine = engine ?: run {
                         val path = modelPath
                         if (path != null) {
@@ -108,9 +112,15 @@ class GemmaEngineHolder(private val context: Context) {
                         throw error
                     }
 
-                    // Release engine memory immediately after parsing.
-                    engine?.close()
-                    engine = null
+                    // Keep engine warm for 30s after last parse, then release memory.
+                    // This avoids cold-starting the 2.5GB model on every message in a batch.
+                    closeJob = scope.launch {
+                        kotlinx.coroutines.delay(30_000)
+                        mutex.withLock {
+                            engine?.close()
+                            engine = null
+                        }
+                    }
 
                     parseResult
                 }

@@ -126,7 +126,7 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
     // pending in review. Rejected/ignored candidates are allowed to re-appear
     // so the user can review them again. Deleting an expense removes its
     // rawSmsHash so the SMS can be re-parsed.
-    if (await ref.read(expenseHashCheckerProvider)(hash)) {
+    if (await ref.read(expenseRepositoryProvider).hasRawSmsHash(hash)) {
       return _SmsQueueResult.skipped;
     }
     if (await repository.containsPendingHash(hash)) {

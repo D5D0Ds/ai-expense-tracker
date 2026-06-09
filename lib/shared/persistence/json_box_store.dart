@@ -38,11 +38,19 @@ final class JsonBoxStore<T> {
         valid.add(entry);
       } else {
         // ignore: avoid_print
+        // Using print because this is a low-level persistence layer;
+        // a proper logger would require adding a dependency.
         print('JsonBoxStore: skipped corrupted non-Map entry: $entry');
       }
     }
     return valid.map(_fromJson).toList();
   }
+
+  /// Raw box values without deserialization or sorting.
+  ///
+  /// Use for direct scans (e.g., hash existence checks) where
+  /// constructing full objects would be wasteful.
+  Iterable<dynamic> get rawValues => _box.values;
 
   /// Finds an entity by id.
   T? byId(String id) {

@@ -3,7 +3,6 @@ package io.github.openexpense.tracker.sms
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.provider.Telephony
 
 class SmsReceiver : BroadcastReceiver() {
@@ -18,11 +17,8 @@ class SmsReceiver : BroadcastReceiver() {
                 receivedAt = message.timestampMillis,
             )
         }
-        val serviceIntent = Intent(context, SmsParseService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
-        }
+        // All work is already done above; the foreground service was a no-op
+        // that caused notification flashes on Android 12+. Removed to comply
+        // with foreground service reliability guidelines.
     }
 }

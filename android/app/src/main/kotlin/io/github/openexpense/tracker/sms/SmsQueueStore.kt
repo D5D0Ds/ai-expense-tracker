@@ -36,12 +36,16 @@ class SmsQueueStore(context: Context) {
 
     fun looksFinancial(body: String): Boolean {
         val lower = body.lowercase()
-        // Quick reject: obvious auth messages.
-        if (authPatterns.any { it.containsMatchIn(lower) }) return false
-        // Layer 1 gate: digits + rupee marker only. The on-device LLM (layer 2)
+        // Quick reject: obvious auth messages — but ONLY if there is no
+        // currency marker. This prevents dropping legitimate transaction SMS
+        // that happen to mention verification (e.g. "your verification code
+        // for transaction Rs.500").
+        val hasCurrency = lower.contains(Regex("[₹$]|\\b(?:rs\\.?|inr|usd|dollar)\\b"))
+        if (!hasCurrency && authPatterns.any { it.containsMatchIn(lower) }) return false
+        // Layer 1 gate: digits + currency marker. The on-device LLM (layer 2)
         // does the real transaction classification.
         return lower.contains(Regex("[0-9]")) &&
-            lower.contains(Regex("[₹]|\\b(?:rs\\.?|inr)\\b"))
+            lower.contains(Regex("[₹$]|\\b(?:rs\\.?|inr|usd|dollar)\\b"))
     }
 
     private companion object {

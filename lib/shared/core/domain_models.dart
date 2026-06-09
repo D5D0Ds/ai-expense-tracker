@@ -1,10 +1,5 @@
 import 'package:collection/collection.dart';
 
-/// Parses an ISO-8601 date string, falling back to [DateTime.now] on failure
-/// so that a single corrupted date field does not brick the database.
-DateTime _safeDateTime(String? value) =>
-    DateTime.tryParse(value ?? '') ?? DateTime.now();
-
 /// Expense categories supported by the on-device classifier.
 enum ExpenseCategory {
   /// Food, groceries, restaurants, cafes, and delivery.
@@ -458,7 +453,7 @@ final class Expense {
       id: json['id'] as String,
       amount: (json['amount'] as num).toDouble(),
       currency: json['currency'] as String? ?? 'INR',
-      occurredAt: _safeDateTime(json['occurredAt'] as String?),
+      occurredAt: DateTime.parse(json['occurredAt'] as String),
       payee: json['payee'] as String,
       category: ExpenseCategory.fromLabel(json['category'] as String?),
       source: ExpenseSource.values.byName(
@@ -477,11 +472,11 @@ final class Expense {
       notes: json['notes'] as String?,
       sourceLabel: json['sourceLabel'] as String?,
       fundingSourceLabel: json['fundingSourceLabel'] as String?,
-      createdAt: _safeDateTime(json['createdAt'] as String?),
-      updatedAt: _safeDateTime(json['updatedAt'] as String?),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
       exportedAt: json['exportedAt'] == null
           ? null
-          : _safeDateTime(json['exportedAt'] as String?),
+          : DateTime.parse(json['exportedAt'] as String),
     );
   }
 }
@@ -607,7 +602,7 @@ final class ParsedExpense {
     return ParsedExpense(
       amount: (json['amount'] as num).toDouble(),
       currency: json['currency'] as String? ?? 'INR',
-      date: _safeDateTime(json['date'] as String?),
+      date: DateTime.parse(json['date'] as String),
       payee: json['payee'] as String,
       category: ExpenseCategory.fromLabel(json['category'] as String?),
       transactionKind: TransactionKind.fromValue(
@@ -705,7 +700,7 @@ final class SmsCandidate {
     return SmsCandidate(
       id: json['id'] as String,
       sender: json['sender'] as String,
-      receivedAt: _safeDateTime(json['receivedAt'] as String?),
+      receivedAt: DateTime.parse(json['receivedAt'] as String),
       bodyHash: json['bodyHash'] as String,
       redactedPreview: json['redactedPreview'] as String,
       status: SmsCandidateStatus.values.byName(
@@ -715,7 +710,7 @@ final class SmsCandidate {
         json['proposedExpense'] as Map<dynamic, dynamic>,
       ),
       modelReason: json['modelReason'] as String,
-      createdAt: _safeDateTime(json['createdAt'] as String?),
+      createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
 }
