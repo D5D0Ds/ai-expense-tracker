@@ -36,24 +36,22 @@ class SmsQueueStore(context: Context) {
 
     fun looksFinancial(body: String): Boolean {
         val lower = body.lowercase()
-        // Quick reject: obvious non-transaction patterns (auth codes, promos)
-        if (obviousNonTransactionPatterns.any { it.containsMatchIn(lower) }) return false
-        // Must contain digits and a currency indicator to reach the LLM parser.
+        // Quick reject: obvious auth messages that contain digits but no currency.
+        if (authPatterns.any { it.containsMatchIn(lower) }) return false
+        // Must contain digits and a currency symbol or word to reach the LLM.
         // The LLM then decides whether this is actually a transaction.
         return lower.contains(Regex("[0-9]")) &&
-            lower.contains(Regex("\\b(rs\\.?|inr|₹|amount)\\b"))
+            lower.contains(Regex("[₹$€£¥¢]|\\b(?:rs\\.?|inr|usd|eur|gbp|jpy|yen|yuan|dollar|euro|pound|amount)\\b"))
     }
 
     private companion object {
         const val KEY = "pending_sms"
-        // Only reject obvious auth/promotional messages. Real transaction
-        // classification is left to the on-device LLM parser.
-        val obviousNonTransactionPatterns = listOf(
+        // Only reject obvious auth messages. Real transaction classification
+        // is left to the on-device LLM parser.
+        val authPatterns = listOf(
             Regex("\\botp\\b"),
             Regex("one[- ]time password"),
-            Regex("secret otp"),
             Regex("verification code"),
-            Regex("do not share"),
         )
     }
 }
