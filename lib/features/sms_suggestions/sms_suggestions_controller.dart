@@ -119,7 +119,6 @@ final class SmsSuggestionsController extends AsyncNotifier<List<SmsCandidate>> {
     if (await repository.containsHash(hash)) return _SmsQueueResult.skipped;
 
     final parsed = await ref.read(gemmaExpenseParserProvider).parse(body);
-    if (parsed.amount <= 0) return _SmsQueueResult.skipped;
     final candidate = buildPendingSmsCandidate(
       id: ref.read(idGeneratorProvider)(),
       sender: sender,

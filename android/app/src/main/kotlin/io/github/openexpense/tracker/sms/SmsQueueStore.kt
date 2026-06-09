@@ -36,22 +36,14 @@ class SmsQueueStore(context: Context) {
 
     fun looksFinancial(body: String): Boolean {
         val lower = body.lowercase()
-        // Quick reject: obvious auth messages that contain digits but no currency.
-        if (authPatterns.any { it.containsMatchIn(lower) }) return false
-        // Must contain digits and a currency symbol or word to reach the LLM.
-        // The LLM then decides whether this is actually a transaction.
+        // Layer 1: absolute minimum gate. Pass to LLM if digits exist alongside
+        // an Indian currency marker (Rs, INR, ₹) OR a dollar marker ($, USD, DOLLAR).
+        // The LLM (layer 2) decides if this is actually a transaction.
         return lower.contains(Regex("[0-9]")) &&
-            lower.contains(Regex("[₹$€£¥¢]|\\b(?:rs\\.?|inr|usd|eur|gbp|jpy|yen|yuan|dollar|euro|pound|amount)\\b"))
+            lower.contains(Regex("[₹$]|\\b(?:rs\\.?|inr|usd|dollar)\\b"))
     }
 
     private companion object {
         const val KEY = "pending_sms"
-        // Only reject obvious auth messages. Real transaction classification
-        // is left to the on-device LLM parser.
-        val authPatterns = listOf(
-            Regex("\\botp\\b"),
-            Regex("one[- ]time password"),
-            Regex("verification code"),
-        )
     }
 }
