@@ -235,6 +235,7 @@ class GemmaEngineHolder(private val context: Context) {
             Keys: amount,currency,date,payee,category,transactionKind,paymentMethod,confidence,reason,isPersonLike,accountHint,sourceLabel,fundingSourceLabel.
             Enums: category Food|Shopping|Travel|Bills|Health|Entertainment|Transfer|Other; transactionKind Expense|Lent|Borrowed; paymentMethod Credit card|Debit card|Account|UPI|Cash|Other.
             Use INR unless explicit. Use null for unknown optional fields. Keep reason under 8 words. Person transfers use Transfer.
+            Cashback, refunds, and credits are transactionKind Borrowed (incoming money). Debits and payments are transactionKind Expense.
             """.trimIndent()
 
         private const val TAG = "GemmaEngineHolder"

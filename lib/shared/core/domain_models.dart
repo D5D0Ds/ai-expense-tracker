@@ -195,7 +195,10 @@ enum TransactionKind {
         normalized == 'credited' ||
         normalized == 'credit' ||
         normalized == 'inflow' ||
-        normalized == 'incoming') {
+        normalized == 'incoming' ||
+        normalized == 'cashback' ||
+        normalized == 'refund' ||
+        normalized == 'reward') {
       return borrowed;
     }
     return expense;
